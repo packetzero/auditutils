@@ -25,9 +25,15 @@ void run(size_t loopCount) {
       info = SockAddrInfo();
       bool success = AuditParseUtils::parseSockAddr(saddr.c_str(), saddr.size(), info);
       if (success) {
-        if (info.family == 2) {
+
+        if (info.family == AuditParseUtils::FAM_IPV4) {
           auto addrstr = AuditParseUtils::ip4FromSaddr(info.addr4);
           addrlen += addrstr.size(); // do something so addrstr doesn't get optimized out
+        }
+
+        if (info.family != AuditParseUtils::FAM_UNIXSOCKET) {
+          auto portstr = std::to_string(info.port);
+          addrlen += portstr.size();
         }
       }
 
