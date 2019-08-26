@@ -1,0 +1,72 @@
+#include <vector>
+
+struct ExampleRec {
+  uint32_t rectype;
+  const std::string msg;
+};
+
+std::vector<ExampleRec> ex1_records = {
+{1300, "audit(1566400374.482:252): arch=c000003e syscall=42 success=yes exit=0 a0=14 a1=7f3ddbbd0dcc a2=10 a3=7f3dcc001b60 items=0 ppid=1 pid=672 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=(none) ses=4294967295 comm=\"NetworkManager\" exe=\"/usr/sbin/NetworkManager\" key=(null)"}
+,{1306, "audit(1566400374.482:252): saddr=020000357F000035F850DDC51F560000"}
+,{1327, "audit(1566400374.482:252): proctitle=2F7573722F7362696E2F4E6574776F726B4D616E61676572002D2D6E6F2D6461656D6F6E"}
+,{1320, "audit(1566400374.482:252):"}
+,{1300, "audit(1566400374.494:253): arch=c000003e syscall=49 success=yes exit=0 a0=14 a1=7f3ddbbcf568 a2=c a3=7f3dcc001b60 items=0 ppid=1 pid=672 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=(none) ses=4294967295 comm=\"NetworkManager\" exe=\"/usr/sbin/NetworkManager\" key=(null)"}
+,{1306, "audit(1566400374.494:253): saddr=100000000000000000000000"}
+,{1327, "audit(1566400374.494:253): proctitle=2F7573722F7362696E2F4E6574776F726B4D616E61676572002D2D6E6F2D6461656D6F6E"}
+,{1320, "audit(1566400374.494:253): "}
+,{1300, "audit(1566400374.494:254): arch=c000003e syscall=42 success=yes exit=0 a0=14 a1=7f3dcc001de0 a2=10 a3=4 items=0 ppid=1 pid=672 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=(none) ses=4294967295 comm=\"NetworkManager\" exe=\"/usr/sbin/NetworkManager\" key=(null)"}
+,{1306, "audit(1566400374.494:254): saddr=0200005023DE55050000000000000000"}
+,{1327, "audit(1566400374.494:254): proctitle=2F7573722F7362696E2F4E6574776F726B4D616E61676572002D2D6E6F2D6461656D6F6E"}
+,{1320, "audit(1566400374.494:254):"}
+,{1300, "audit(1566400374.494:255): arch=c000003e syscall=42 success=yes exit=0 a0=14 a1=7f3ddbbcf7a0 a2=10 a3=4 items=0 ppid=1 pid=672 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=(none) ses=4294967295 comm=\"NetworkManager\" exe=\"/usr/sbin/NetworkManager\" key=(null)"}
+,{1306, "audit(1566400374.494:255): saddr=00000000000000000000000000000000"}
+,{1327, "audit(1566400374.494:255): proctitle=2F7573722F7362696E2F4E6574776F726B4D616E61676572002D2D6E6F2D6461656D6F6E"}
+,{1320, "audit(1566400374.494:255):"}
+,{1300, "audit(1566400374.494:256): arch=c000003e syscall=42 success=yes exit=0 a0=14 a1=7f3dcc001e30 a2=10 a3=4 items=0 ppid=1 pid=672 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=(none) ses=4294967295 comm=\"NetworkManager\" exe=\"/usr/sbin/NetworkManager\" key=(null)"}
+,{1306, "audit(1566400374.494:256): saddr=0200005023E0639C0000000000000000"}
+,{1327, "audit(1566400374.494:256): proctitle=2F7573722F7362696E2F4E6574776F726B4D616E61676572002D2D6E6F2D6461656D6F6E"}
+,{1320, "audit(1566400374.494:256):"}
+,{1300, "audit(1566400374.798:257): arch=c000003e syscall=42 success=yes exit=0 a0=4 a1=7fffffc925a0 a2=6e a3=fffffffffffff304 items=1 ppid=2159 pid=97969 auid=1000 uid=1000 gid=1000 euid=1000 suid=1000 fsuid=1000 egid=1000 sgid=1000 fsgid=1000 tty=pts1 ses=3 comm=\"ssh\" exe=\"/usr/bin/ssh\" key=(null)"}
+,{1306, "audit(1566400374.798:257): saddr=01002F72756E2F757365722F313030302F6B657972696E672F73736800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"}
+,{1307, "audit(1566400374.798:257): cwd=\"/home/developer/some/subdir\""}
+,{1302, "audit(1566400374.798:257): item=0 name=\"/run/user/1000/keyring/ssh\" inode=21 dev=00:31 mode=0140775 ouid=1000 ogid=1000 rdev=00:00 nametype=NORMAL cap_fp=0000000000000000 cap_fi=0000000000000000 cap_fe=0 cap_fver=0"}
+,{1327, "audit(1566400374.798:257): proctitle=73736800726F6F74406C6F63616C686F7374"}
+,{1320, "audit(1566400374.798:257):"}
+,{1300, "audit(1566400374.798:258): arch=c000003e syscall=42 success=yes exit=0 a0=c a1=7fe58520f500 a2=6e a3=0 items=1 ppid=1 pid=1524 auid=1000 uid=1000 gid=1000 euid=1000 suid=1000 fsuid=1000 egid=1000 sgid=1000 fsgid=1000 tty=(none) ses=2 comm=\"pool\" exe=\"/usr/bin/gnome-keyring-daemon\" key=(null)"}
+,{1306, "audit(1566400374.798:258): saddr=01002F72756E2F757365722F313030302F6B657972696E672F2E737368000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"}
+,{1307, "audit(1566400374.798:258): cwd=\"/\""}
+,{1302, "audit(1566400374.798:258): item=0 name=\"/run/user/1000/keyring/.ssh\" inode=33 dev=00:31 mode=0140600 ouid=1000 ogid=1000 rdev=00:00 nametype=NORMAL cap_fp=0000000000000000 cap_fi=0000000000000000 cap_fe=0 cap_fver=0"}
+,{1327, "audit(1566400374.798:258): proctitle=2F7573722F62696E2F676E6F6D652D6B657972696E672D6461656D6F6E002D2D6461656D6F6E697A65002D2D6C6F67696E"}
+,{1320, "audit(1566400374.798:258):"}
+,{1300, "audit(1566400374.862:259): arch=c000003e syscall=42 success=no exit=-2 a0=4 a1=7ffcb2d78e40 a2=6e a3=6 items=1 ppid=115255 pid=97970 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=(none) ses=4294967295 comm=\"sshd\" exe=\"/usr/sbin/sshd\" key=(null)"}
+,{1306, "audit(1566400374.862:259): saddr=01002F7661722F72756E2F6E7363642F736F636B6574006F6E2D2A0A006D69742E736F206F720A002020202070616D5F73656C696E75782E736F006F70656E0A0000F254A0550000C32E5E35DF7F000001000000000000000000000000000000584D7E35DF7F0000989F5333DF7F"}
+,{1307, "audit(1566400374.862:259): cwd=\"/\""}
+,{1302, "audit(1566400374.862:259): item=0 name=\"/var/run/nscd/socket\" nametype=UNKNOWN cap_fp=0000000000000000 cap_fi=0000000000000000 cap_fe=0 cap_fver=0"}
+,{1327, "audit(1566400374.862:259): proctitle=2F7573722F7362696E2F73736864002D44002D52"}
+,{1320, "audit(1566400374.862:259):"}
+,{1300, "audit(1566400374.862:260): arch=c000003e syscall=42 success=no exit=-2 a0=4 a1=7ffcb2d78fd0 a2=6e a3=6 items=1 ppid=115255 pid=97970 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=(none) ses=4294967295 comm=\"sshd\" exe=\"/usr/sbin/sshd\" key=(null)"}
+,{1306, "audit(1566400374.862:260): saddr=01002F7661722F72756E2F6E7363642F736F636B6574002F2F2F2F2F2F2F2F2F2F617574686F72697A65645F6B6579733531322C7273612D736861322D323536322D6E697374703532312C7373682D650061737072696E7466206661696C65640000000000000000000000000000"}
+,{1307, "audit(1566400374.862:260): cwd=\"/\""}
+,{1302, "audit(1566400374.862:260): item=0 name=\"/var/run/nscd/socket\" nametype=UNKNOWN cap_fp=0000000000000000 cap_fi=0000000000000000 cap_fe=0 cap_fver=0"}
+,{1327, "audit(1566400374.862:260): proctitle=2F7573722F7362696E2F73736864002D44002D52"}
+,{1320, "audit(1566400374.862:260):"}
+,{1112, "audit(1566400374.866:261): pid=97970 uid=0 auid=4294967295 ses=4294967295 msg='op=login acct=\"root\" exe=\"/usr/sbin/sshd\" hostname=? addr=127.0.0.1 terminal=sshd res=failed'"}
+,{1300, "audit(1566400376.394:262): arch=c000003e syscall=42 success=yes exit=0 a0=4 a1=7fdf339232a0 a2=6e a3=ffffffa9 items=1 ppid=115255 pid=97970 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=(none) ses=4294967295 comm=\"sshd\" exe=\"/usr/sbin/sshd\" key=(null)"}
+,{1306, "audit(1566400376.394:262): saddr=01002F6465762F6C6F6700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"}
+,{1307, "audit(1566400376.394:262): cwd=\"/\""}
+,{1302, "audit(1566400376.394:262): item=0 name=\"/dev/log\" inode=295 dev=00:17 mode=0140666 ouid=0 ogid=0 rdev=00:00 nametype=NORMAL cap_fp=0000000000000000 cap_fi=0000000000000000 cap_fe=0 cap_fver=0"}
+,{1327, "audit(1566400376.394:262): proctitle=2F7573722F7362696E2F73736864002D44002D52"}
+,{1320, "audit(1566400376.394:262):"}
+,{1300, "audit(1566400378.206:263): arch=c000003e syscall=49 success=yes exit=0 a0=9 a1=7ffcb2d76808 a2=c a3=1d items=0 ppid=115255 pid=97970 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=(none) ses=4294967295 comm=\"sshd\" exe=\"/usr/sbin/sshd\" key=(null)"}
+,{1306, "audit(1566400378.206:263): saddr=100000000000000000000000"}
+,{1327, "audit(1566400378.206:263): proctitle=2F7573722F7362696E2F73736864002D44002D52"}
+,{1320, "audit(1566400378.206:263):"}
+,{1100, "audit(1566400378.206:264): pid=97970 uid=0 auid=4294967295 ses=4294967295 msg='op=PAM:authentication acct=\"root\" exe=\"/usr/sbin/sshd\" hostname=127.0.0.1 addr=127.0.0.1 terminal=ssh res=failed'"}
+,{1112, "audit(1566400378.206:265): pid=97970 uid=0 auid=4294967295 ses=4294967295 msg='op=login acct=\"root\" exe=\"/usr/sbin/sshd\" hostname=? addr=127.0.0.1 terminal=sshd res=failed'"}
+,{1300, "audit(1566400380.354:266): arch=c000003e syscall=42 success=yes exit=0 a0=4 a1=7fdf339232a0 a2=6e a3=ffffffb4 items=1 ppid=115255 pid=97970 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=(none) ses=4294967295 comm=\"sshd\" exe=\"/usr/sbin/sshd\" key=(null)"}
+,{1306, "audit(1566400380.354:266): saddr=01002F6465762F6C6F6700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"}
+,{1307, "audit(1566400380.354:266): cwd=\"/\""}
+,{1302, "audit(1566400380.354:266): item=0 name=\"/dev/log\" inode=295 dev=00:17 mode=0140666 ouid=0 ogid=0 rdev=00:00 nametype=NORMAL cap_fp=0000000000000000 cap_fi=0000000000000000 cap_fe=0 cap_fver=0"}
+,{1327, "audit(1566400380.354:266): proctitle=2F7573722F7362696E2F73736864002D44002D52"}
+,{1320, "audit(1566400380.354:266):"}
+};

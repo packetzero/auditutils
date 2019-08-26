@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 #include <string>
-#include "hexutils.hpp"
+#include "hexi.hpp"
 
 struct SockAddrInfo {
   uint32_t port;
