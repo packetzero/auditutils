@@ -17,7 +17,8 @@ if(WINDOWS)
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
 endif()
 
-add_subdirectory(bench)
+add_subdirectory(bench_hexparse)
+add_subdirectory(bench_records)
 
 # find dependencies
 FIND_LIBRARY(GTEST_LIB gtest HINT ${DEPDIR}/lib )

@@ -2,7 +2,10 @@
 #include <sstream>
 #include <oldauditutils.hpp>
 
-
+/*
+ * This application tests hex parsing optimizations against
+ * osquery audit events defaults.
+ */
 static const std::string saddr_socket = "01002F7661722F72756E2F6E7363642F736F636B65740000EFC1DE857B7F0000070000000000000090F0FE857B7F00000100000000000000000000000000000001000000000000000025FF857B7F0000B03779857B7F00002074EF65010000000074EF65FC7F00001074EF65FC7F";
 
 // IPV4 port:53 addr:
@@ -42,7 +45,7 @@ void run(size_t loopCount) {
 }
 
 void runOld(size_t loopCount) {
-  
+
   std::vector<std::string> saddrs = { saddrv4b, saddrv6a, saddr_zero, saddr_netlink, saddr2, saddr_socket};
   std::map<std::string,std::string> row;
   for (size_t i = 0; i < loopCount; i++) {

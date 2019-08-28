@@ -1,8 +1,10 @@
 #pragma once
 
 #include <list>
+#include <map>
 #include <mutex>
-#include <unordered_map>
+#include <vector>
+//#include <unordered_map>
 
 struct AuditRecFieldPtrs {
   const char *pkey;
@@ -72,7 +74,6 @@ struct AuditReplyBuf : public audit_reply, AuditRecBuf {
     
   }
   virtual ~AuditReplyBuf() {
-    //fields_.clear();
   }
 
   int getType() override {
@@ -97,13 +98,46 @@ struct AuditReplyBuf : public audit_reply, AuditRecBuf {
 
   // offset in bytes from start of msg.data[]
   size_t fieldsOffset_ {0};
-  
-//  std::map<std::string, string_offsets_t> fields_;
-  
-//  bool isProcessed_ { false };
 };
 
+// most records are smaller than 512 bytes
+
+#define AUDIT_TYPICAL_BUF_LEN 512
+
+struct AuditTypicalBuf : public AuditRecBuf {
+  AuditTypicalBuf() : AuditRecBuf(), data_(), len_(0), type_(0) {
+  }
+
+  virtual ~AuditTypicalBuf() {
+  }
+
+  int getType() override {
+    return type_;
+  }
+  
+  char *data() override {
+    return data_;
+  };
+  
+  size_t size() override {
+    return len_;
+  }
+  
+  size_t capacity() override {
+    return sizeof(data_);
+  }
+  
+  void setOffset(int offset) override {
+  }
+
+  char data_[AUDIT_TYPICAL_BUF_LEN];
+  int len_;
+  int type_;
+};
+
+
 typedef std::shared_ptr<AuditReplyBuf> SPAuditReplyBuf;
+typedef std::shared_ptr<AuditTypicalBuf> SPAuditTypicalBuf;
 
 struct AuditRecState {
   AuditRecState(SPAuditRecBuf buf) : spBuf(buf), fields(), isProcessed(false) {}
@@ -113,13 +147,85 @@ struct AuditRecState {
   bool isProcessed;
 };
 
+/*
+ * Manages a pool of audit_reply objects, as well as
+ * smaller ones used for consolidation.
+ */
 struct AuditRecAllocator {
-  
-  virtual SPAuditRecBuf alloc() = 0;
-  
-  virtual void         free(SPAuditRecBuf obj) = 0;
-};
+  static const int MAX_REPLY_BUFS = 12;
+  static const int MAX_SMALL_BUFS = 32;
 
+  AuditRecAllocator() : pool_(), mutex_() {}
+  virtual ~AuditRecAllocator() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    num_ = 0;
+    pool_.clear();
+  }
+  
+  SPAuditRecBuf allocReply()  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (pool_.empty()) {
+      if (num_ >= MAX_REPLY_BUFS) {
+        return nullptr;
+      }
+      num_++;
+      return std::make_shared<AuditReplyBuf>();
+    }
+    auto obj = pool_.front();
+    pool_.pop_front();
+    return obj;
+  }
+  
+  SPAuditRecBuf compact(SPAuditRecBuf spReply) {
+    if (spReply->capacity() <= AUDIT_TYPICAL_BUF_LEN) {
+      // should not happen
+      return spReply;
+    }
+    if (spReply->size() >= AUDIT_TYPICAL_BUF_LEN) {
+      return spReply;
+    }
+
+    std::lock_guard<std::mutex> lock(mutex_);
+    SPAuditTypicalBuf spBuf;
+    if (!small_pool_.empty()) {
+      spBuf = std::static_pointer_cast<AuditTypicalBuf>(small_pool_.front());
+      small_pool_.pop_front();
+    } else {
+      if (small_num_ >= MAX_SMALL_BUFS) {
+        return spReply;
+      }
+      small_num_++;
+      spBuf = std::make_shared<AuditTypicalBuf>();
+    }
+    
+    // copy details over to small buf
+
+    memcpy(spBuf->data(), spReply->data(), (int)spReply->size());
+    spBuf->type_ = spReply->getType();
+    spBuf->len_ = spReply->size();
+
+    // make sure it's null-terminated
+
+    spBuf->data_[spBuf->len_] = 0;
+
+    // free up 8KB reply buf
+    
+    free(spReply);
+
+    return spBuf;
+  }
+  
+  void free(SPAuditRecBuf obj)  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    pool_.push_back(obj);
+  }
+  
+  std::list<SPAuditRecBuf> pool_;
+  std::list<SPAuditRecBuf> small_pool_;
+  std::mutex mutex_;
+  uint32_t num_ {0};
+  uint32_t small_num_ {0};
+};
 typedef std::shared_ptr<AuditRecAllocator> SPAuditRecAllocator;
 
 
@@ -166,6 +272,15 @@ public:
     return records_[i].spBuf;
   }
 
+  void compact() {
+    if (records_.size() <= 1) {
+      return;
+    }
+    for (int i=0; i < records_.size(); i++) {
+      records_[i].spBuf = allocator_->compact(std::static_pointer_cast<AuditReplyBuf>(records_[i].spBuf));
+    }
+  }
+  
   // return type
   int getType() override {
     if (records_.empty()) return 0;
@@ -199,7 +314,9 @@ public:
 
   void release() override {
     header_.serial = "";
-    for (auto &rec : records_) { allocator_->free(rec.spBuf); }
+    for (auto &rec : records_) {
+      allocator_->free(rec.spBuf);
+    }
     records_.clear();
   }
 
@@ -213,47 +330,19 @@ protected:
 
 typedef std::shared_ptr<AuditGroupImpl> SPAuditGroupImpl;
 
-struct AuditReplyAllocatorImpl : public AuditRecAllocator {
 
-  AuditReplyAllocatorImpl() : AuditRecAllocator(), pool_(), mutex_() {}
-  virtual ~AuditReplyAllocatorImpl() {
-    std::lock_guard<std::mutex> lock(mutex_);
-    num_ = 0;
-    pool_.clear();
-  }
-
-  SPAuditRecBuf alloc() override {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (pool_.empty()) {
-      // TODO: enforce max-allocated
-      num_++;
-      return std::make_shared<AuditReplyBuf>();
-    }
-    auto obj = pool_.front();
-    pool_.pop_front();
-    return obj;
-  }
-
-  void         free(SPAuditRecBuf obj) override {
-    std::lock_guard<std::mutex> lock(mutex_);
-    pool_.push_back(obj);
-  }
-
-  std::list<SPAuditRecBuf> pool_;
-  std::mutex mutex_;
-  uint32_t num_ {0};
-};
+#define AUDIT_RECORD_TYPE_END_GROUP 1320          // contains no fields
 
 class AuditCollectorImpl : public AuditCollector {
 public:
   AuditCollectorImpl(SPAuditListener l) : AuditCollector(), spListener_(l),
-  spCurrent_(), allocator_(std::make_shared<AuditReplyAllocatorImpl>()) {
+  spCurrent_(), allocator_(std::make_shared<AuditRecAllocator>()) {
   }
 
   virtual ~AuditCollectorImpl() {}
 
   SPAuditRecBuf allocReply() override {
-    return allocator_->alloc();
+    return allocator_->allocReply();
   }
 
   /*
@@ -262,8 +351,9 @@ public:
    * assumptions:
    * seconds and milliseconds are fixed length
    * serial not always 3 characters
+   *
+   * 
    */
-
   bool onAuditRecord(SPAuditRecBuf spRec) override {
     std::lock_guard<std::mutex> lock(mutex_);
     // sanity check
@@ -271,10 +361,17 @@ public:
     auto msg = spRec->data();
 
     if (spRec->size() < 24 || msg[0] != 'a' || msg[5] != '(' || msg[20] != ':') {
+      allocator_->free(spRec);
       return true;
     }
     // preamble start: "audit(1566400374.798:" + serial + "):"
 
+    if (spRec->getType() == AUDIT_RECORD_TYPE_END_GROUP) {
+      allocator_->free(spRec);
+      flush();
+      return false;
+    }
+    
     const char *pend = msg + spRec->size();
     const char *p = msg + 21;
     const char *start = p;
@@ -282,7 +379,10 @@ public:
     // find trailing brace after serial
 
     while (p < pend && *p != ')') p++;
-    if (*p != ')') { return true; }
+    if (*p != ')') {
+      allocator_->free(spRec);
+      return true;
+    }
 
     // extract serial
 
@@ -291,6 +391,7 @@ public:
     if (spCurrent_ == nullptr || serial != spCurrent_->getSerial()) {
 
       if (spCurrent_ != nullptr && spListener_ != nullptr) {
+        spCurrent_->compact();
         spListener_->onAuditRecords(spCurrent_);
       }
 
@@ -325,7 +426,7 @@ protected:
 
   SPAuditListener spListener_;
   SPAuditGroupImpl spCurrent_;
-  std::shared_ptr<AuditReplyAllocatorImpl> allocator_;
+  std::shared_ptr<AuditRecAllocator> allocator_;
   std::mutex mutex_;
 };
 
