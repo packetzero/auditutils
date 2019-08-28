@@ -81,7 +81,9 @@ TEST_F(AuditRecParseTests, get_field) {
   FILL_REPLY(spReply, rec1);
   
   spCollector->onAuditRecord(spReply);
-  
+
+  ASSERT_TRUE(listener_->vec.empty());
+
   spCollector->flush();
   
   ASSERT_EQ(1, listener_->vec.size());
@@ -91,4 +93,32 @@ TEST_F(AuditRecParseTests, get_field) {
   std::string pidstr;
   spGroup->getField(0, "pid", pidstr, "X");
   ASSERT_EQ("97970",pidstr);
+}
+
+TEST_F(AuditRecParseTests, multi_groups) {
+  
+  auto spCollector = AuditCollectorNew(listener_);
+  
+  for (int i=0; i < 9; i++) {
+    auto spReply = spCollector->allocReply();
+    FILL_REPLY(spReply, ex1_records[i]);
+  
+    spCollector->onAuditRecord(spReply);
+
+    if (i == 4) {
+      ASSERT_EQ(1, listener_->vec.size());
+    } else if (i == 8) {
+      ASSERT_EQ(2, listener_->vec.size());
+    }
+  }
+
+  auto spGroup = listener_->vec[0];
+  
+  std::string pidstr;
+  spGroup->getField(1300, "syscall", pidstr, "X");
+  ASSERT_EQ("42",pidstr);
+
+  std::string saddrstr;
+  spGroup->getField(1306, "saddr", saddrstr, "X");
+  ASSERT_EQ("020000357F000035F850DDC51F560000",saddrstr);
 }
