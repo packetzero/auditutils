@@ -35,11 +35,6 @@ protected:
   std::shared_ptr<MyAuditListener> listener_;
 };
 
-TEST_F(AuditRecParseTests, typical) {
-  SPAuditRecParser spParser = AuditRecParserNew();
-  spParser->parse(rec1.rectype, rec1.msg.data(), rec1.msg.size());
-}
-
 static inline void FILL_REPLY(SPAuditRecBuf spRecBuf, const ExampleRec &rec) {
   auto spReply = std::static_pointer_cast<AuditReplyBuf>(spRecBuf);
   strcpy(spReply->data(), rec.msg.data());

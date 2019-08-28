@@ -15,20 +15,6 @@ struct AuditGroupHdr {
 #include <linux/audit.h>
 #endif
 
-
-struct AuditRecParser {
-
-  virtual bool parse(uint32_t rectype, const char *msg, size_t msglen) = 0;
-
-  virtual void clearState() = 0;
-};
-
-typedef std::shared_ptr<AuditRecParser> SPAuditRecParser;
-
-
-
-SPAuditRecParser AuditRecParserNew();
-
 /*
  * Abstraction for an audit_reply struct.
  * The audit_reply has a fixed msg.data[] size of 8192 chars.
