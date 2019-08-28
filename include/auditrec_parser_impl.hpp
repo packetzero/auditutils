@@ -209,17 +209,31 @@ struct AuditRecAllocator {
     spBuf->data_[spBuf->len_] = 0;
 
     // free up 8KB reply buf
-    
-    free(spReply);
+
+    _free(spReply);
 
     return spBuf;
   }
   
   void free(SPAuditRecBuf obj)  {
     std::lock_guard<std::mutex> lock(mutex_);
-    pool_.push_back(obj);
+    _free(obj);
   }
-  
+
+  void _free(SPAuditRecBuf obj)  {
+    if (obj->capacity() > AUDIT_TYPICAL_BUF_LEN) {
+      auto sp = std::static_pointer_cast<AuditReplyBuf>(obj);
+      sp->len = 0;
+      sp->type = 0;
+      pool_.push_back(obj);
+    } else {
+      auto sp = std::static_pointer_cast<AuditTypicalBuf>(obj);
+      sp->len_ = 0;
+      sp->type_ = 0;
+      small_pool_.push_back(obj);
+    }
+  }
+
   std::list<SPAuditRecBuf> pool_;
   std::list<SPAuditRecBuf> small_pool_;
   std::mutex mutex_;
@@ -276,8 +290,11 @@ public:
     if (records_.size() <= 1) {
       return;
     }
+
+    // replace with 8 KB buffers with 512 B buffers
+
     for (int i=0; i < records_.size(); i++) {
-      records_[i].spBuf = allocator_->compact(std::static_pointer_cast<AuditReplyBuf>(records_[i].spBuf));
+      records_[i].spBuf = allocator_->compact(records_[i].spBuf);
     }
   }
   
@@ -297,8 +314,8 @@ public:
         continue;
       }
       if (!records_[i].isProcessed) {
-        AuditRecParserImpl::parseFields(prec->data(), //msg.data + prec->fieldsOffset_,
-                                        prec->size(),// - prec->fieldsOffset_,
+        AuditRecParserImpl::parseFields(prec->data(),
+                                        prec->size(),
                                         records_[i].fields);
         records_[i].isProcessed = true;
       }
@@ -391,8 +408,7 @@ public:
     if (spCurrent_ == nullptr || serial != spCurrent_->getSerial()) {
 
       if (spCurrent_ != nullptr && spListener_ != nullptr) {
-        spCurrent_->compact();
-        spListener_->onAuditRecords(spCurrent_);
+        flush();
       }
 
       // parse timestamp
@@ -414,6 +430,9 @@ public:
 
   virtual void flush() override {
     if (spCurrent_ != nullptr) {
+
+      spCurrent_->compact();
+
       if (spListener_ != nullptr) {
         spListener_->onAuditRecords(spCurrent_);
       }
