@@ -10,9 +10,9 @@ struct MyAuditListener : public AuditListener {
     vec.push_back(spRecordGroup);
     return false;
   }
-  void cleanup(SPAuditCollector spCollector) {
+  void cleanup() {
     for (auto spRecGroup : vec) {
-      spCollector->releaseRecords(spRecGroup);
+      spRecGroup->release();
     }
     vec.clear();
   }
@@ -29,6 +29,7 @@ protected:
     listener_ = std::make_shared<MyAuditListener>();
   }
   virtual void TearDown() override {
+    listener_->cleanup();
   }
   std::shared_ptr<MyAuditListener> listener_;
 };
@@ -45,13 +46,49 @@ static inline void FILL_REPLY(SPAuditReply spReply, const ExampleRec &rec) {
 }
 
 TEST_F(AuditRecParseTests, collect1) {
-  
 
   auto spCollector = AuditCollectorNew(listener_);
+
   auto spReply = spCollector->allocReply();
   FILL_REPLY(spReply, rec1);
   
   spCollector->onAuditRecord(spReply);
+
   spCollector->flush();
+  
+  ASSERT_EQ(1, listener_->vec.size());
+
+  auto spGroup = listener_->vec[0];
+
+  ASSERT_EQ(1,spGroup->getNumMessages());
+  EXPECT_EQ(1300, spGroup->getType());
+  EXPECT_EQ("266", spGroup->getSerial());
+  EXPECT_EQ(1566400380, spGroup->getTimeSeconds());
+  EXPECT_EQ(354, spGroup->getTimeMs());
+  
+  auto spRec = spGroup->getMessage(0);
+
+  EXPECT_EQ(nullptr, spGroup->getMessage(-1));
+  EXPECT_EQ(nullptr, spGroup->getMessage(2));
+  EXPECT_EQ(1300, spRec->type);
 }
 
+TEST_F(AuditRecParseTests, get_field) {
+  
+  auto spCollector = AuditCollectorNew(listener_);
+  
+  auto spReply = spCollector->allocReply();
+  FILL_REPLY(spReply, rec1);
+  
+  spCollector->onAuditRecord(spReply);
+  
+  spCollector->flush();
+  
+  ASSERT_EQ(1, listener_->vec.size());
+  
+  auto spGroup = listener_->vec[0];
+ 
+  std::string pidstr;
+  spGroup->getField(0, "pid", pidstr, "X");
+  ASSERT_EQ("97970",pidstr);
+}

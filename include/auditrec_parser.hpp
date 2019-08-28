@@ -52,6 +52,8 @@ struct AuditGroup {
   virtual int getType() = 0;
   
   virtual bool getField(int recType, const std::string &name, std::string &dest, std::string defaultValue) = 0;
+  
+  virtual void release() = 0;
 };
 
 typedef std::shared_ptr<AuditGroup> SPAuditGroup;
@@ -75,8 +77,6 @@ struct AuditCollector {
   virtual SPAuditReply allocReply() = 0;
   
   virtual bool onAuditRecord(SPAuditReply spRec) = 0;
-  
-  virtual void releaseRecords(SPAuditGroup spRecordGroup) = 0;
   
   virtual void flush() = 0;
 };

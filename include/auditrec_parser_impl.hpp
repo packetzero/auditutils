@@ -295,8 +295,8 @@ typedef std::shared_ptr<AuditReplyExt> SPAuditReplyExt;
 class AuditGroupImpl : public AuditGroup {
 public:
 
-  AuditGroupImpl(std::string serial, int64_t tsec, int32_t tms) :
-    AuditGroup(), header_(), replies_(), replyFields_()
+  AuditGroupImpl(std::string serial, int64_t tsec, int32_t tms, SPAuditReplyAllocator a) :
+    AuditGroup(), header_(), replies_(), replyFields_(), allocator_(a)
   {
     header_.serial = serial;
     header_.tsec = tsec;
@@ -365,13 +365,11 @@ public:
     return true;
   }
   
-  void clear(SPAuditReplyAllocator allocator) {
+  void release() override {
     header_.serial = "";
     replyFields_.clear();
-    while (!replies_.empty()) {
-      allocator->free(replies_[0]);
-      replies_.erase(replies_.begin());
-    }
+    for (auto spReply : replies_) { allocator_->free(spReply); }
+    replies_.clear();
   }
 
 protected:
@@ -379,6 +377,7 @@ protected:
 
   std::vector<SPAuditReplyExt> replies_;
   std::vector< std::map<std::string,std::string> > replyFields_;
+  SPAuditReplyAllocator allocator_;
 };
 
 typedef std::shared_ptr<AuditGroupImpl> SPAuditGroupImpl;
@@ -470,7 +469,7 @@ public:
       auto ts = atol(secondstr.c_str());
       auto tms = atoi(millistr.c_str());
       
-      spCurrent_ = std::make_shared<AuditGroupImpl>(serial, (int64_t)ts, (uint32_t)tms);
+      spCurrent_ = std::make_shared<AuditGroupImpl>(serial, (int64_t)ts, (uint32_t)tms, allocator_);
     }
 
     size_t preamble_size = (p - msg) + 3;  // "): "
@@ -479,10 +478,6 @@ public:
     return false;
   }
 
-  void releaseRecords(SPAuditGroup spRecordGroup) override {
-    auto spg = std::static_pointer_cast<AuditGroupImpl>(spRecordGroup);
-    spg->clear(allocator_);
-  }
   
   virtual void flush() override {
     if (spCurrent_ != nullptr) {
