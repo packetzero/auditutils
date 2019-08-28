@@ -1,5 +1,7 @@
 #pragma once
 
+#include <list>
+#include <mutex>
 #include <unordered_map>
 
 struct AuditRecFieldPtrs {
@@ -28,6 +30,11 @@ struct AlNum {
   }
 };
 
+struct string_offsets_t {
+  const char *pstart;
+  long len;
+};
+
 struct AuditRecParserImpl : public AuditRecParser {
   static const int HAVE_ALL_FIELDS_FOR_THIS_RECORD = -1;
   AuditRecParserImpl() : AuditRecParser(), currentGroup_(), mapWantedFields_() {}
@@ -51,7 +58,48 @@ struct AuditRecParserImpl : public AuditRecParser {
 
     return false;
   }
-  
+
+  static bool parseFields(const char *body, int bodylen, std::map<std::string, string_offsets_t> &dest) {
+    const char *start = body;
+    const char *pend = body + bodylen;
+
+    while (start < pend) {
+      const char *p = start ;
+      while (p != pend && *p != '=') {
+        p++;
+      }
+      if (p == pend) {
+        break;
+      }
+      const char *keyEnd = p;
+      p++;
+      if (p == pend) {
+        return true;
+      }
+      const char *valueStart = p;
+      bool isQuoted = false;
+      char endChar = ' ';
+      if (*p == '"') {
+        isQuoted = true;
+        endChar = '"';
+        p++;
+        valueStart = p;
+      }
+      // find end of value
+      while (p != pend && (*p != endChar)) {
+        p++;
+      }
+      auto key = std::string(start, (keyEnd - start));
+      string_offsets_t entry = {valueStart, p - valueStart - (isQuoted ? 1 : 0)};
+      dest[key] = entry;
+      
+      start = p + 1;
+    }
+    
+    return false;
+
+  }
+
   bool parse_body(uint32_t rectype, const char *body, size_t bodylen) {
     const char *start = body;
     const char *pend = body + bodylen;
@@ -224,3 +272,217 @@ protected:
 SPAuditRecParser AuditRecParserNew() {
   return std::make_shared<AuditRecParserImpl>();
 }
+
+
+struct AuditReplyExt : AuditReply {
+  AuditReplyExt() : AuditReply(), fields_(), allocator_() {}
+
+  // offset in bytes from start of msg.data[]
+  size_t fieldsOffset_ {0};
+  
+  std::map<std::string, string_offsets_t> fields_;
+
+  SPAuditReplyAllocator allocator_;
+  
+  bool isProcessed_ { false };
+};
+
+typedef std::shared_ptr<AuditReplyExt> SPAuditReplyExt;
+
+class AuditGroupImpl : public AuditGroup {
+public:
+
+  AuditGroupImpl(std::string serial, int64_t tsec, int32_t tms) :
+    AuditGroup(), header_(), replies_(), replyFields_()
+  {
+    header_.serial = serial;
+    header_.tsec = tsec;
+    header_.tms = tms;
+  }
+
+  void add(SPAuditReply spReply, size_t preamble_size) {
+    auto sp = std::static_pointer_cast<AuditReplyExt>(spReply);
+    sp->fieldsOffset_ = preamble_size;
+    replies_.push_back(sp);
+  }
+
+  std::string getSerial() override {
+    return header_.serial;
+  }
+
+  uint64_t getTimeSeconds()  override {
+    return header_.tsec;
+  }
+
+  uint32_t getTimeMs() override {
+    return header_.tms;
+  }
+  
+  AuditGroupHdr &getHeader() override {
+    return header_;
+  }
+  
+  size_t getNumMessages() override {
+    return replies_.size();
+  }
+  
+  SPAuditReply getMessage(int i) override {
+    if (i < 0 || i > replies_.size()) return nullptr;
+    return replies_[i];
+  }
+
+  // return type
+  int getType() override {
+    if (replies_.empty()) return 0;
+    return replies_[0]->type;
+  }
+  
+  bool getField(int recType, const std::string &name, std::string &dest, std::string defaultValue) override {
+    for (int i=0; i < replies_.size(); i++) {
+      auto &prec = replies_[i];
+      if (recType != 0 && prec->type != recType) {
+        continue;
+      }
+      if (!prec->isProcessed_) {
+        AuditRecParserImpl::parseFields(prec->msg.data + prec->fieldsOffset_,
+                                        prec->len - prec->fieldsOffset_,
+                                        prec->fields_);
+        prec->isProcessed_ = true;
+      }
+      auto fit = prec->fields_.find(name);
+      if (fit != prec->fields_.end()) {
+        dest = std::string(fit->second.pstart, fit->second.len);
+        return false;
+      }
+    }
+    dest = defaultValue;
+    return true;
+  }
+  
+  void clear() {
+    replyFields_.clear();
+    replies_.clear();
+    header_.serial = "";
+  }
+
+protected:
+  AuditGroupHdr header_;
+
+  std::vector<SPAuditReplyExt> replies_;
+  std::vector< std::map<std::string,std::string> > replyFields_;
+};
+
+typedef std::shared_ptr<AuditGroupImpl> SPAuditGroupImpl;
+
+static SPAuditGroupImpl AuditGroupNew(std::string serial,long ts, long tms) {
+  auto sp = std::make_shared<AuditGroupImpl>(serial, (int64_t)ts, (uint32_t)tms);
+  return sp;
+}
+
+
+struct AuditReplyAllocatorImpl : public AuditReplyAllocator {
+
+  AuditReplyAllocatorImpl() : AuditReplyAllocator(), pool_(), mutex_() {}
+
+  SPAuditReply alloc() override {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (pool_.empty()) {
+      // TODO: enforce max-allocated
+      num_++;
+      return std::make_shared<AuditReplyExt>(this);
+    }
+    auto obj = pool_.front();
+    pool_.pop_front();
+    return obj;
+  }
+  
+  void         free(SPAuditReply obj) override {
+    std::lock_guard<std::mutex> lock(mutex_);
+    pool_.push_back(std::static_pointer_cast<AuditReplyExt>(obj));
+  }
+
+  std::list<SPAuditReplyExt> pool_;
+  std::mutex mutex_;
+  uint32_t num_ {0};
+};
+
+class AuditCollectorImpl : public AuditCollector {
+public:
+  AuditCollectorImpl(SPAuditListener l) : AuditCollector(), spListener_(l),
+    spCurrent_(), allocator_() {
+  }
+
+  virtual ~AuditCollectorImpl() {}
+
+  SPAuditReplyAllocator allocator() override {
+    return allocator_;
+  }
+
+  /*
+   * Preamble is of format:
+   * "audit(1566400376.394:262):"
+   * assumptions:
+   * seconds and milliseconds are fixed length
+   * serial not always 3 characters
+   */
+
+  bool onAuditRecord(SPAuditReply spRec) override {
+    // sanity check
+    
+    auto msg = spRec->msg.data;
+    
+    if (spRec->len < 24 || msg[0] != 'a' || msg[5] != '(' || msg[20] != ':') {
+      return true;
+    }
+    // preamble start: "audit(1566400374.798:" + serial + "):"
+    
+    const char *pend = msg + spRec->len;
+    const char *p = msg + 21;
+    const char *start = p;
+    
+    // find trailing brace after serial
+    
+    while (p < pend && *p != ')') p++;
+    if (*p != ')') { return true; }
+    
+    // extract serial
+    
+    std::string serial = std::string(start, p - start);
+    
+    if (spCurrent_ == nullptr || serial != spCurrent_->getSerial()) {
+      
+      if (spCurrent_ != nullptr && spListener_ != nullptr) {
+        spListener_->onAuditRecords(spCurrent_);
+      }
+      
+      // parse timestamp
+      std::string secondstr = std::string(msg + 6, msg + 16);
+      std::string millistr = std::string(msg + 17, msg + 20);
+      
+      spCurrent_ = AuditGroupNew(serial,atol(secondstr.c_str()), atol(millistr.c_str()));
+    }
+
+    size_t preamble_size = (p - msg) + 3;  // "): "
+    spCurrent_->add(spRec, preamble_size);
+    
+    return false;
+  }
+  
+  void clearState() override {
+  }
+
+  void releaseRecords(SPAuditGroup spRecordGroup) override {
+    auto spg = std::static_pointer_cast<AuditGroupImpl>(spRecordGroup);
+    spg->clear();
+  }
+
+  
+  
+protected:
+
+
+  SPAuditListener spListener_;
+  SPAuditGroupImpl spCurrent_;
+  std::shared_ptr<AuditReplyAllocatorImpl> allocator_;
+};
+
