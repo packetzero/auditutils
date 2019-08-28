@@ -50,7 +50,7 @@ void run(size_t loopCount) {
 
 int main(int argc, char *argv[])
 {
-  size_t loopCount = 5000000;
+  size_t loopCount = 50000;
   run(loopCount);
 
 }

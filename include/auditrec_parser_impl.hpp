@@ -14,8 +14,8 @@ struct AuditRecFieldPtrs {
 };
 
 struct string_offsets_t {
-  const char *pstart;
-  long len;
+  uint32_t start;
+  uint32_t len;
 };
 
 struct AuditRecParserImpl  {
@@ -53,7 +53,9 @@ struct AuditRecParserImpl  {
         p++;
       }
       auto key = std::string(start, (keyEnd - start));
-      string_offsets_t entry = {valueStart, p - valueStart - (isQuoted ? 1 : 0)};
+      string_offsets_t entry;
+      entry.start = (uint32_t)(valueStart - body);
+      entry.len = (uint32_t)(p - valueStart - (isQuoted ? 1 : 0));
       dest[key] = entry;
 
       start = p + 1;
@@ -321,7 +323,7 @@ public:
       }
       auto fit = records_[i].fields.find(name);
       if (fit != records_[i].fields.end()) {
-        dest = std::string(fit->second.pstart, fit->second.len);
+        dest = std::string(prec->data() + fit->second.start, fit->second.len);
         return true;
       }
     }
