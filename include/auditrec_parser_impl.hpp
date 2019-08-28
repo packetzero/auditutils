@@ -275,15 +275,18 @@ SPAuditRecParser AuditRecParserNew() {
 
 
 struct AuditReplyExt : AuditReply {
-  AuditReplyExt() : AuditReply(), fields_(), allocator_() {}
+
+  AuditReplyExt() : AuditReply(), fields_() {}
+
+  virtual ~AuditReplyExt() {
+    fields_.clear();
+  }
 
   // offset in bytes from start of msg.data[]
   size_t fieldsOffset_ {0};
   
   std::map<std::string, string_offsets_t> fields_;
 
-  SPAuditReplyAllocator allocator_;
-  
   bool isProcessed_ { false };
 };
 
@@ -298,6 +301,9 @@ public:
     header_.serial = serial;
     header_.tsec = tsec;
     header_.tms = tms;
+  }
+  virtual ~AuditGroupImpl() {
+    
   }
 
   void add(SPAuditReply spReply, size_t preamble_size) {
@@ -359,10 +365,13 @@ public:
     return true;
   }
   
-  void clear() {
-    replyFields_.clear();
-    replies_.clear();
+  void clear(SPAuditReplyAllocator allocator) {
     header_.serial = "";
+    replyFields_.clear();
+    while (!replies_.empty()) {
+      allocator->free(replies_[0]);
+      replies_.erase(replies_.begin());
+    }
   }
 
 protected:
@@ -374,22 +383,21 @@ protected:
 
 typedef std::shared_ptr<AuditGroupImpl> SPAuditGroupImpl;
 
-static SPAuditGroupImpl AuditGroupNew(std::string serial,long ts, long tms) {
-  auto sp = std::make_shared<AuditGroupImpl>(serial, (int64_t)ts, (uint32_t)tms);
-  return sp;
-}
-
-
 struct AuditReplyAllocatorImpl : public AuditReplyAllocator {
 
   AuditReplyAllocatorImpl() : AuditReplyAllocator(), pool_(), mutex_() {}
+  virtual ~AuditReplyAllocatorImpl() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    num_ = 0;
+    pool_.clear();
+  }
 
   SPAuditReply alloc() override {
     std::lock_guard<std::mutex> lock(mutex_);
     if (pool_.empty()) {
       // TODO: enforce max-allocated
       num_++;
-      return std::make_shared<AuditReplyExt>(this);
+      return std::make_shared<AuditReplyExt>();
     }
     auto obj = pool_.front();
     pool_.pop_front();
@@ -409,13 +417,13 @@ struct AuditReplyAllocatorImpl : public AuditReplyAllocator {
 class AuditCollectorImpl : public AuditCollector {
 public:
   AuditCollectorImpl(SPAuditListener l) : AuditCollector(), spListener_(l),
-    spCurrent_(), allocator_() {
+  spCurrent_(), allocator_(std::make_shared<AuditReplyAllocatorImpl>()) {
   }
 
   virtual ~AuditCollectorImpl() {}
 
-  SPAuditReplyAllocator allocator() override {
-    return allocator_;
+  SPAuditReply allocReply() override {
+    return allocator_->alloc();
   }
 
   /*
@@ -427,6 +435,7 @@ public:
    */
 
   bool onAuditRecord(SPAuditReply spRec) override {
+    std::lock_guard<std::mutex> lock(mutex_);
     // sanity check
     
     auto msg = spRec->msg.data;
@@ -458,8 +467,10 @@ public:
       // parse timestamp
       std::string secondstr = std::string(msg + 6, msg + 16);
       std::string millistr = std::string(msg + 17, msg + 20);
+      auto ts = atol(secondstr.c_str());
+      auto tms = atoi(millistr.c_str());
       
-      spCurrent_ = AuditGroupNew(serial,atol(secondstr.c_str()), atol(millistr.c_str()));
+      spCurrent_ = std::make_shared<AuditGroupImpl>(serial, (int64_t)ts, (uint32_t)tms);
     }
 
     size_t preamble_size = (p - msg) + 3;  // "): "
@@ -467,22 +478,30 @@ public:
     
     return false;
   }
-  
-  void clearState() override {
-  }
 
   void releaseRecords(SPAuditGroup spRecordGroup) override {
     auto spg = std::static_pointer_cast<AuditGroupImpl>(spRecordGroup);
-    spg->clear();
+    spg->clear(allocator_);
+  }
+  
+  virtual void flush() override {
+    if (spCurrent_ != nullptr) {
+      if (spListener_ != nullptr) {
+        spListener_->onAuditRecords(spCurrent_);
+      }
+    }
+    spCurrent_ = nullptr;
   }
 
   
-  
 protected:
-
 
   SPAuditListener spListener_;
   SPAuditGroupImpl spCurrent_;
   std::shared_ptr<AuditReplyAllocatorImpl> allocator_;
+  std::mutex mutex_;
 };
 
+SPAuditCollector AuditCollectorNew(SPAuditListener listener) {
+  return std::make_shared<AuditCollectorImpl>(listener);
+}

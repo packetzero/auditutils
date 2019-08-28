@@ -72,15 +72,15 @@ typedef std::shared_ptr<AuditReplyAllocator> SPAuditReplyAllocator;
 
 struct AuditCollector {
 
-  virtual SPAuditReplyAllocator allocator() = 0;
+  virtual SPAuditReply allocReply() = 0;
   
   virtual bool onAuditRecord(SPAuditReply spRec) = 0;
   
-  virtual void clearState() = 0;
-  
   virtual void releaseRecords(SPAuditGroup spRecordGroup) = 0;
-
+  
+  virtual void flush() = 0;
 };
 
+typedef std::shared_ptr<AuditCollector> SPAuditCollector;
 
 #include "auditrec_parser_impl.hpp"
