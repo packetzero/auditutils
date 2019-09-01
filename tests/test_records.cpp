@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 #include <string>
-#include <auditrec_parser.hpp>
+#include <auditutils/auditrec_parser.hpp>
 
 #include "example_records.hpp"
 //audit(1105758604.519:420): avc: denied { getattr } for pid=5962 comm="httpd" path="/home/auser/public_html" dev=sdb2 ino=921135

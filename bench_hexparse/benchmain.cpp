@@ -1,6 +1,6 @@
-#include <auditutils.hpp>
+#include <auditutils/auditutils.hpp>
 #include <sstream>
-#include <oldauditutils.hpp>
+#include <auditutils/_x_oldauditutils.hpp>
 
 /*
  * This application tests hex parsing optimizations against

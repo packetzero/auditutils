@@ -1,6 +1,6 @@
-#include <auditutils.hpp>
+#include <auditutils/auditutils.hpp>
 #include <sstream>
-#include <auditrec_parser.hpp>
+#include <auditutils/auditrec_parser.hpp>
 #include <unistd.h>
 
 #include "../tests/example_records.hpp"

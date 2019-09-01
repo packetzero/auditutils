@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <string>
-#include <auditutils.hpp>
-#include <oldauditutils.hpp>
+#include <auditutils/auditutils.hpp>
+#include <auditutils/_x_oldauditutils.hpp>
 
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
