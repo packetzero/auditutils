@@ -8,8 +8,8 @@ struct AuditGroupHdr {
 
 #ifdef __APPLE__
 
-#include "linux_audit.h"
-#include "linux_syscalls.h"
+#include "_x_linux_audit.h"
+#include "_x_linux_syscalls.h"
 
 #else
 #include <linux/audit.h>
@@ -51,7 +51,7 @@ struct AuditRecBuf {
 
 typedef std::shared_ptr<AuditRecBuf> SPAuditRecBuf;
 
-struct AuditGroup {
+struct AuditRecGroup {
 
   virtual std::string     getSerial() = 0;
 
@@ -86,7 +86,7 @@ struct AuditGroup {
   virtual void release() = 0;
 };
 
-typedef std::shared_ptr<AuditGroup> SPAuditGroup;
+typedef std::shared_ptr<AuditRecGroup> SPAuditGroup;
 
 struct AuditListener {
   /*
@@ -141,3 +141,5 @@ typedef std::shared_ptr<AuditCollector> SPAuditCollector;
 // SPAuditCollector AuditCollectorNew(SPAuditListener listener);
 
 #include "auditrec_parser_impl.hpp"
+#include "auditrec_buffers_impl.hpp"
+#include "auditrec_collector_impl.hpp"
