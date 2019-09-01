@@ -30,4 +30,5 @@ else()
   add_subdirectory(tests)
 endif()
 
-install(DIRECTORY include DESTINATION . FILES_MATCHING PATTERN "*.h" )
+install(DIRECTORY include DESTINATION . FILES_MATCHING PATTERN "a*.h*" )
+install(DIRECTORY include DESTINATION . FILES_MATCHING PATTERN "hexi*.h*" )
