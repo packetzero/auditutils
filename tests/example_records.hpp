@@ -1,11 +1,6 @@
-#include <vector>
+#include "test_defs.h"
 
-struct ExampleRec {
-  uint32_t rectype;
-  const std::string msg;
-};
-
-std::vector<ExampleRec> ex1_records = {
+static std::vector<ExampleRec> ex1_records = {
 {1300, "audit(1566400374.482:252): arch=c000003e syscall=42 success=yes exit=0 a0=14 a1=7f3ddbbd0dcc a2=10 a3=7f3dcc001b60 items=0 ppid=1 pid=672 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=(none) ses=4294967295 comm=\"NetworkManager\" exe=\"/usr/sbin/NetworkManager\" key=(null)"}
 ,{1306, "audit(1566400374.482:252): saddr=020000357F000035F850DDC51F560000"}
 ,{1327, "audit(1566400374.482:252): proctitle=2F7573722F7362696E2F4E6574776F726B4D616E61676572002D2D6E6F2D6461656D6F6E"}

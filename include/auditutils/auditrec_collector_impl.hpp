@@ -76,7 +76,7 @@ public:
         continue;
       }
       if (!records_[i].isProcessed) {
-        AuditRecParserImpl::parseFields(prec->data(),
+        AuditRecParsers::getInstance().parseFields(prec->getType(), prec->data(),
                                         prec->size(),
                                         records_[i].fields);
         records_[i].isProcessed = true;
@@ -229,6 +229,8 @@ protected:
   std::mutex mutex_;
 };
 
+namespace {
 SPAuditCollector AuditCollectorNew(SPAuditListener listener) {
   return std::make_shared<AuditCollectorImpl>(listener);
+}
 }

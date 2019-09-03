@@ -118,4 +118,8 @@ TEST_F(AuditRecParseTests, multi_groups) {
   std::string saddrstr;
   spGroup->getField(1306, "saddr", saddrstr, "X");
   ASSERT_EQ("020000357F000035F850DDC51F560000",saddrstr);
+
+  std::string value;
+  spGroup->getField(1300, "exe", value, "X");
+  ASSERT_EQ("/usr/sbin/NetworkManager", value);
 }
