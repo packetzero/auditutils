@@ -74,7 +74,7 @@ struct DefaultAuditRecFieldParser  {
       auto key = std::string(start, (keyEnd - start));
       string_offsets_t entry;
       entry.start = (uint32_t)(valueStart - body);
-      entry.len = (uint32_t)(p - valueStart - 0);
+      entry.len = (uint32_t)(p - valueStart );
       dest[key] = entry;
 
       // advance
@@ -162,15 +162,10 @@ struct SELinuxFieldsParser : public AuditRecFieldsParser {
       auto key = std::string(start, (keyEnd - start));
       string_offsets_t entry;
       entry.start = (uint32_t)(valueStart - body);
-      entry.len = (uint32_t)(p - valueStart - (isQuoted ? 1 : 0));
+      entry.len = (uint32_t)(p - valueStart);
 
       if (i++ == 0) {
         // the first key is where the special handling comes into play
-        // cases:
-        //   'user pid=1169'  # _sel_prefix='user'
-        //   'avc: granted { transition } for pid=7687 ' # _avc_status=granted, _avc_op=transition, strip off 'for'
-        //   'policy loaded auid=0 ses=2' # _policy_status=loaded
-        //   'netlabel: auid=0 ses=2 '  # _sel_prefix='netlabel'
         handleSpecialIntro(key, entry, dest);
       } else {
         dest[key] = entry;
@@ -178,14 +173,73 @@ struct SELinuxFieldsParser : public AuditRecFieldsParser {
 
       // advance
 
-      start = p + 1;
+      start = p + (isQuoted ? 2 : 1);
     }
     return false;
   }
 
+  // cases:
+  //   'avc: granted { transition } for pid=7687 ' # _avc_status=granted, _avc_op=transition, strip off 'for'
+  //   'policy loaded auid=0 ses=2' # _policy_status=loaded
+  //   'netlabel: auid=0 ses=2 '  # _sel_prefix='netlabel'
+  //   'user pid=1169'  # _sel_prefix='user'
   void handleSpecialIntro(std::string &key, string_offsets_t &entry, std::map<std::string, string_offsets_t> &dest) {
-    // TODO:
-    dest[key] = entry;
+
+    std::size_t posLastSpace = key.rfind(" ");
+    std::size_t posFirstSpace = key.find(" ");
+    if (posLastSpace == std::string::npos) {
+      // use verbatim
+      dest[key] = entry;
+      return;
+    }
+
+
+    std::string actualKey = key.substr(posLastSpace+1);
+    dest[actualKey] = entry;
+    
+    // now handle special info
+    
+    const char *end = key.data() + posLastSpace;
+
+    // prefix only?  'user' or 'netlabel:'
+    
+    if (posFirstSpace == posLastSpace) {
+      //std::string prefix = key.substr(0, posFirstSpace);
+      dest["_sel_prefix"] = string_offsets_t({0, (uint32_t)posFirstSpace});
+      return;
+    }
+
+    // avc: some_status { some_action } for pid
+
+    if (posFirstSpace == 4 && key[0] == 'a' && key[3] == ':') {
+      // find status
+      const char *p = key.data() + 5;
+      const char *start = p;
+      while (p < end && *p != ' ') {
+        p++;
+      }
+      if (p >= end) {
+        return;  // did not find
+      }
+      //std::string avcStatus = key.substr(5,(p-start));
+      dest["_avc_status"] = string_offsets_t({5,(uint32_t)(p-start)});
+      
+      start = p + 3;
+      p = start;
+      while (p < end && *p != '}') {
+        p++;
+      }
+
+      if (p >= end) {
+        return;  // did not find
+      }
+      //std::string avcOp = key.substr(start-key.data(),(p-start-1));
+      dest["_avc_op"] = string_offsets_t({(uint32_t)(start-key.data()),(uint32_t)(p-start-1)});
+    }
+    else if (posFirstSpace == 6 && key[0] == 'p' && key[5] == 'y') {
+      //std::string policyStatus = key.substr(posFirstSpace+1,posLastSpace-posFirstSpace-1);
+      dest["_policy_status"] = string_offsets_t({(uint32_t)(posFirstSpace+1),(uint32_t)(posLastSpace-posFirstSpace-1)});
+    }
   }
 };
 
