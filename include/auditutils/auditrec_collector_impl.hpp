@@ -69,7 +69,10 @@ public:
   /*
    * return true if found
    */
-  bool getField(int recType, const std::string &name, std::string &dest, std::string defaultValue) override {
+  bool getField(const std::string &name, std::string &dest, std::string defaultValue, int recType=0, int nth=0) override {
+
+    // TODO: support nth value
+
     for (int i=0; i < records_.size(); i++) {
       auto &prec = records_[i].spBuf;
       if (recType != 0 && prec->getType() != recType) {
@@ -92,6 +95,38 @@ public:
   }
 
   /**
+   * First, calls getField(recType,name,..) and then will extracy key=value
+   * pairs from from the result (if found).  Sub keys names will have prefix.
+   *
+   * For example, if a message contains a field like:
+   *  stuff='street=main zip=92544 city="Pico Mundo"'
+   * Then calling expandField(0,"stuff") will add the following to
+   * the available fields:
+   *   stuff_street : "main"
+   *   stuff_zip :"92544"
+   *   stuff_city : "Pico Mundo"
+   *
+   * A call to getField(0,"stuff_zip",..) can then be called to get the value
+   *   "92544"
+   * @return true if found, false otherwise.
+   */
+  bool expandField(const std::string &name, int recType, std::map<std::string,std::string> &dest) override {
+     std::string value;
+     if (!getField(name, value, "X", recType)) {
+       return false;
+     }
+     std::map<std::string,string_offsets_t> entries;
+     AuditRecParsers::getInstance().parseFields(records_[0].spBuf->getType(),
+                                     value.data(),
+                                     value.size(),
+                                     entries);
+    for (auto &it : entries) {
+      dest[it.first] = value.substr(it.second.start, it.second.len);
+    }
+     return true;
+   }
+
+  /**
    * When application is finished with AuditRecGroup, it needs to call
    * release so that resources (buffers) can be recycled.
    */
@@ -104,6 +139,7 @@ public:
   }
 
 protected:
+
   AuditGroupHdr header_;
 
   std::vector<AuditRecState> records_;

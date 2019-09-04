@@ -17,7 +17,11 @@ struct string_offsets_t {
 
 struct AuditRecFieldsParser {
   virtual bool handlesType(int recType) = 0;
-  virtual bool parseFields(int recType, const char *body, int bodylen, std::map<std::string, string_offsets_t> &dest) = 0;
+  /**
+   * @param prefix If not empty, will be prefixed to all key names added to dest.
+   */
+  virtual bool parseFields(int recType, const char *body, int bodylen,
+                 std::map<std::string, string_offsets_t> &dest) = 0;
 };
 
 struct DefaultAuditRecFieldParser  {
@@ -38,7 +42,8 @@ struct DefaultAuditRecFieldParser  {
    * @return true on parse error, false on success
    */
 
-  static bool parseFields(const char *body, int bodylen, std::map<std::string, string_offsets_t> &dest) {
+  static bool parseFields(const char *body, int bodylen,
+                          std::map<std::string, string_offsets_t> &dest) {
     const char *start = body;
     const char *pend = body + bodylen;
 
@@ -58,9 +63,9 @@ struct DefaultAuditRecFieldParser  {
       const char *valueStart = p;
       bool isQuoted = false;
       char endChar = ' ';
-      if (*p == '"') {
+      if (*p == '"' || *p == '\'') {
         isQuoted = true;
-        endChar = '"';
+        endChar = *p;
         p++;
         valueStart = p;
       }
@@ -72,6 +77,7 @@ struct DefaultAuditRecFieldParser  {
       // add entry to dest
 
       auto key = std::string(start, (keyEnd - start));
+
       string_offsets_t entry;
       entry.start = (uint32_t)(valueStart - body);
       entry.len = (uint32_t)(p - valueStart );
@@ -89,7 +95,8 @@ struct DefaultAuditRecFieldParser  {
 struct AuditRecParsers {
   AuditRecParsers() : mutex_(), addedParsers_() {  }
 
-  bool parseFields(int recType, const char *body, int bodylen, std::map<std::string, string_offsets_t> &dest) {
+  bool parseFields(int recType, const char *body, int bodylen,
+                   std::map<std::string, string_offsets_t> &dest) {
     std::lock_guard<std::mutex> lock(mutex_);
 
     if (!addedParsers_.empty()) {
@@ -146,9 +153,9 @@ struct SELinuxFieldsParser : public AuditRecFieldsParser {
       const char *valueStart = p;
       bool isQuoted = false;
       char endChar = ' ';
-      if (*p == '"') {
+      if (*p == '"' || *p == '\'') {
         isQuoted = true;
-        endChar = '"';
+        endChar = *p;
         p++;
         valueStart = p;
       }
@@ -196,13 +203,13 @@ struct SELinuxFieldsParser : public AuditRecFieldsParser {
 
     std::string actualKey = key.substr(posLastSpace+1);
     dest[actualKey] = entry;
-    
+
     // now handle special info
-    
+
     const char *end = key.data() + posLastSpace;
 
     // prefix only?  'user' or 'netlabel:'
-    
+
     if (posFirstSpace == posLastSpace) {
       //std::string prefix = key.substr(0, posFirstSpace);
       dest["_sel_prefix"] = string_offsets_t({0, (uint32_t)posFirstSpace});
@@ -223,7 +230,7 @@ struct SELinuxFieldsParser : public AuditRecFieldsParser {
       }
       //std::string avcStatus = key.substr(5,(p-start));
       dest["_avc_status"] = string_offsets_t({5,(uint32_t)(p-start)});
-      
+
       start = p + 3;
       p = start;
       while (p < end && *p != '}') {

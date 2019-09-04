@@ -69,13 +69,13 @@ TEST_F(AuditRecSELinuxParseTests, avc_denied1) {
   EXPECT_EQ(1400, spGroup->getType());
 
   std::string value;
-  EXPECT_TRUE(spGroup->getField(1400, "_avc_status", value, "X"));
+  EXPECT_TRUE(spGroup->getField("_avc_status", value, "X", 1400));
   EXPECT_EQ("denied", value);
-  EXPECT_TRUE(spGroup->getField(1400, "_avc_op", value, "X"));
+  EXPECT_TRUE(spGroup->getField("_avc_op", value, "X",1400));
   EXPECT_EQ("rename", value);
-  EXPECT_TRUE(spGroup->getField(1400, "pid", value, "X"));
+  EXPECT_TRUE(spGroup->getField( "pid", value, "X",1400));
   EXPECT_EQ("2508", value);
-  EXPECT_TRUE(spGroup->getField(1400, "comm", value, "X"));
+  EXPECT_TRUE(spGroup->getField( "comm", value, "X",1400));
   EXPECT_EQ("canberra-gtk-pl", value);
 }
 
@@ -98,11 +98,11 @@ TEST_F(AuditRecSELinuxParseTests, avc_record_granted) {
   EXPECT_EQ(1400, spGroup->getType());
 
   std::string value;
-  EXPECT_TRUE(spGroup->getField(1400, "_avc_status", value, "X"));
+  EXPECT_TRUE(spGroup->getField("_avc_status", value, "X"));
   EXPECT_EQ("granted", value);
-  EXPECT_TRUE(spGroup->getField(1400, "_avc_op", value, "X"));
+  EXPECT_TRUE(spGroup->getField("_avc_op", value, "X"));
   EXPECT_EQ("transition", value);
-  EXPECT_TRUE(spGroup->getField(1400, "pid", value, "X"));
+  EXPECT_TRUE(spGroup->getField("pid", value, "X"));
   EXPECT_EQ("7687", value);
 }
 
@@ -126,9 +126,9 @@ TEST_F(AuditRecSELinuxParseTests, sel_policy1) {
   EXPECT_EQ(1403, spGroup->getType());
 
   std::string value;
-  EXPECT_TRUE(spGroup->getField(0, "_policy_status", value, "X"));
+  EXPECT_TRUE(spGroup->getField("_policy_status", value, "X"));
   EXPECT_EQ("loaded", value);
-  EXPECT_TRUE(spGroup->getField(0, "auid", value, "X"));
+  EXPECT_TRUE(spGroup->getField("auid", value, "X"));
   EXPECT_EQ("0", value);
 }
 
@@ -153,10 +153,15 @@ TEST_F(AuditRecSELinuxParseTests, sel_user_avc1) {
   EXPECT_EQ(1167, spGroup->getType());
 
   std::string value;
-  EXPECT_TRUE(spGroup->getField(0, "_sel_prefix", value, "X"));
+  EXPECT_TRUE(spGroup->getField("_sel_prefix", value, "X"));
   EXPECT_EQ("user", value);
-  EXPECT_TRUE(spGroup->getField(0, "pid", value, "X"));
+  EXPECT_TRUE(spGroup->getField("pid", value, "X"));
   EXPECT_EQ("1169", value);
+
+  std::map<std::string,std::string> subfields;
+  EXPECT_TRUE(spGroup->expandField("msg", 1167, subfields));
+  EXPECT_EQ("3c00001", subfields["resid"]);
+  EXPECT_EQ("denied", subfields["_avc_status"]);
 }
 
 // static ExampleRec ex_sel_netlabel1 = {1416,"audit(1336664587.640:413): netlabel: auid=0 ses=2 subj=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023 netif=lo src=127.0.0.1 sec_obj=system_u:object_r:unconfined_t:s0-s0:c0,c100 res=1"};
@@ -180,8 +185,8 @@ TEST_F(AuditRecSELinuxParseTests, sel_netlabel1) {
   EXPECT_EQ(1416, spGroup->getType());
 
   std::string value;
-  EXPECT_TRUE(spGroup->getField(0, "_sel_prefix", value, "X"));
+  EXPECT_TRUE(spGroup->getField("_sel_prefix", value, "X"));
   EXPECT_EQ("netlabel:", value);
-  EXPECT_TRUE(spGroup->getField(0, "auid", value, "X"));
+  EXPECT_TRUE(spGroup->getField("auid", value, "X"));
   EXPECT_EQ("0", value);
 }

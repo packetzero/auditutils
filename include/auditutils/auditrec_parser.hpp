@@ -1,5 +1,7 @@
 #pragma once
 
+#include <map>
+
 struct AuditGroupHdr {
   std::string serial;
   uint64_t tsec;
@@ -70,14 +72,34 @@ struct AuditRecGroup {
    */
   virtual int getType() = 0;
 
-  /*
+  /**
    * Find field with key 'name' and populate dest with the value.
-   * If recType != 0, will only search records with that type for the
-   * field.
+   *
+   * @param recType If recType != 0, will only search records with that type for the
+   * field. Specifying recType is more efficient, as the lazy parsing of
+   * records need not be done for recTypes not specified.
+   * @param nth If > 0, will return the nth instance of the field 'name'.
+   *
    * If field not found, dest will be set to defaultValue.
    * @return true if found, false otherwise.
    */
-  virtual bool getField(int recType, const std::string &name, std::string &dest, std::string defaultValue) = 0;
+  virtual bool getField(const std::string &name, std::string &dest, std::string defaultValue, int recType=0, int nth=0) = 0;
+
+ /**
+  * First, calls getField(recType,name,..) and then will extracy key=value
+  * pairs from from the result (if found).
+  *
+  * For example, if a message contains a field like:
+  *  stuff='street=main zip=92544 city="Pico Mundo"'
+  * Then calling expandField(0,"stuff") will add the following to
+  * the dest:
+  *   street : "main"
+  *   zip :"92544"
+  *   city : "Pico Mundo"
+  *
+  * @return true if found, false otherwise.
+  */
+  virtual bool expandField(const std::string &name, int recType, std::map<std::string,std::string> &dest) = 0;
 
   /*
    * Called by application when done accessing all records and fields.

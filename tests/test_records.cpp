@@ -88,7 +88,7 @@ TEST_F(AuditRecParseTests, get_field) {
   auto spGroup = listener_->vec[0];
 
   std::string pidstr;
-  spGroup->getField(0, "pid", pidstr, "X");
+  spGroup->getField("pid", pidstr, "X");
   ASSERT_EQ("97970",pidstr);
 }
 
@@ -112,14 +112,14 @@ TEST_F(AuditRecParseTests, multi_groups) {
   auto spGroup = listener_->vec[0];
 
   std::string pidstr;
-  spGroup->getField(1300, "syscall", pidstr, "X");
+  spGroup->getField("syscall", pidstr, "X",1300);
   ASSERT_EQ("42",pidstr);
 
   std::string saddrstr;
-  spGroup->getField(1306, "saddr", saddrstr, "X");
+  spGroup->getField("saddr", saddrstr, "X", 1306);
   ASSERT_EQ("020000357F000035F850DDC51F560000",saddrstr);
 
   std::string value;
-  spGroup->getField(1300, "exe", value, "X");
+  spGroup->getField("exe", value, "X",1300);
   ASSERT_EQ("/usr/sbin/NetworkManager", value);
 }
