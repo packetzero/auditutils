@@ -154,8 +154,9 @@ typedef std::shared_ptr<AuditRecGroupImpl> SPAuditGroupImpl;
 
 class AuditCollectorImpl : public AuditCollector {
 public:
-  AuditCollectorImpl(SPAuditListener l) : AuditCollector(), spListener_(l),
-  spCurrent_(), allocator_(std::make_shared<AuditRecAllocator>()) {
+  AuditCollectorImpl(SPAuditListener l, size_t max_pool_size_large, size_t max_pool_size_small) : AuditCollector(), spListener_(l),
+  spCurrent_(),
+  allocator_(std::make_shared<AuditRecAllocator>(max_pool_size_large, max_pool_size_small)) {
   }
 
   virtual ~AuditCollectorImpl() {}
@@ -266,7 +267,7 @@ protected:
 };
 
 namespace {
-SPAuditCollector AuditCollectorNew(SPAuditListener listener) {
-  return std::make_shared<AuditCollectorImpl>(listener);
+SPAuditCollector AuditCollectorNew(SPAuditListener listener, size_t max_pool_size_large = 50, size_t max_pool_size_small = 500) {
+  return std::make_shared<AuditCollectorImpl>(listener, max_pool_size_large, max_pool_size_small);
 }
 }

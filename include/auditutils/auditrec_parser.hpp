@@ -32,11 +32,13 @@ struct AuditRecBuf {
 
   /*
    * Data buffer pointer + offset.
+   * Some auditd message processing requires use of the nlmsghdr.
    */
-  virtual char *       data() = 0;
+  virtual char *       data(bool withHeader) = 0;
+  virtual char *       data() { return data(false); }
 
-  /*
-   * data size - offset
+  /**
+   * @returns data size - offset
    */
   virtual size_t       size() = 0;
 

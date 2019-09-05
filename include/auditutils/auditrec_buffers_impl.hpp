@@ -1,5 +1,6 @@
 #pragma once
 
+#include <assert.h>
 #include <list>
 #include <map>
 #include <memory>
@@ -19,7 +20,10 @@ struct AuditReplyBuf : public audit_reply, AuditRecBuf {
     return type;
   }
 
-  char *data() override {
+  char *data(bool withHeader) override {
+    if (withHeader) {
+      return (char *)&msg.hdr;
+    }
     return msg.data + fieldsOffset_;
   };
 
@@ -56,8 +60,8 @@ struct AuditTypicalBuf : public AuditRecBuf {
     return type_;
   }
 
-  char *data() override {
-    return data_;
+  char *data(bool withHeader) override {
+    return (withHeader ? (char *)&hdr_ : data_);
   };
 
   size_t size() override {
@@ -71,9 +75,10 @@ struct AuditTypicalBuf : public AuditRecBuf {
   void setOffset(int offset) override {
   }
 
-  char data_[MAXLEN];
-  int len_;
-  int type_;
+  nlmsghdr  hdr_;
+  char      data_[MAXLEN];
+  int       len_;
+  int       type_;
 };
 
 
@@ -96,10 +101,21 @@ struct AuditRecState {
  * smaller ones used for consolidation.
  */
 struct AuditRecAllocator {
-  static const int MAX_REPLY_BUFS = 12;
-  static const int MAX_SMALL_BUFS = 32;
+//  static const int DEFAULT_MAX_REPLY_BUFS = 50;
+//  static const int DEFAULT_MAX_SMALL_BUFS = 500;
 
-  AuditRecAllocator() : pool_(), mutex_() {}
+  /**
+   * @param max_pool_size_small If 0, the smaller buffers will not
+   *                            be pooled, only allocated shared_ptr.
+   *                            Otherwise, sets a limit on number of
+   *                            allocated shared_ptr.
+   */
+  AuditRecAllocator(size_t max_pool_size_large, size_t max_pool_size_small) : pool_(),
+      mutex_(), max_reply_bufs_(max_pool_size_large), max_small_bufs_(max_pool_size_small) {
+        if (max_reply_bufs_ <= 0) {
+          max_reply_bufs_ = 50; // 8KB each
+        }
+      }
   virtual ~AuditRecAllocator() {
     std::lock_guard<std::mutex> lock(mutex_);
     num_ = 0;
@@ -109,7 +125,7 @@ struct AuditRecAllocator {
   SPAuditRecBuf allocReply()  {
     std::lock_guard<std::mutex> lock(mutex_);
     if (pool_.empty()) {
-      if (num_ >= MAX_REPLY_BUFS) {
+      if (num_ >= max_reply_bufs_) {
         return nullptr;
       }
       num_++;
@@ -126,10 +142,11 @@ struct AuditRecAllocator {
    */
   SPAuditRecBuf compact(SPAuditRecBuf spReply) {
     if (spReply->capacity() <= AuditTypicalBuf::MAXLEN) {
-      // should not happen
+      assert(false); // should not happen
       return spReply;
     }
     if (spReply->size() >= AuditTypicalBuf::MAXLEN) {
+      // TODO: handle this more gracefully.  Ideally use smaller buffer, not audit_reply
       return spReply;
     }
 
@@ -139,16 +156,23 @@ struct AuditRecAllocator {
       spBuf = std::static_pointer_cast<AuditTypicalBuf>(small_pool_.front());
       small_pool_.pop_front();
     } else {
-      if (small_num_ >= MAX_SMALL_BUFS) {
-        return spReply;
+      if (max_small_bufs_ > 0) {
+        if (small_num_ >= max_small_bufs_) {
+          return spReply;
+        }
+        small_num_++;
       }
-      small_num_++;
       spBuf = std::make_shared<AuditTypicalBuf>();
     }
 
-    // copy details over to small buf
+    // copy message data to small buf
 
-    memcpy(spBuf->data(), spReply->data(), (int)spReply->size());
+    memcpy(spBuf->data(false), spReply->data(), (int)spReply->size());
+
+    // copy over header
+
+    memcpy(spBuf->data(true), spReply->data(true), (int)sizeof(nlmsghdr));
+
     spBuf->type_ = spReply->getType();
     spBuf->len_ = spReply->size();
 
@@ -174,12 +198,17 @@ struct AuditRecAllocator {
       sp->len = 0;
       sp->type = 0;
       sp->fieldsOffset_ = 0;
+      memset(&sp->msg.hdr, 0, sizeof(sp->msg.hdr));
       pool_.push_back(obj);
     } else {
-      auto sp = std::static_pointer_cast<AuditTypicalBuf>(obj);
-      sp->len_ = 0;
-      sp->type_ = 0;
-      small_pool_.push_back(obj);
+      if (max_small_bufs_ == 0) {
+        // Not pooling small bufs, shared pointer will be freed
+      } else {
+        auto sp = std::static_pointer_cast<AuditTypicalBuf>(obj);
+        sp->len_ = 0;
+        sp->type_ = 0;
+        small_pool_.push_back(obj);
+      }
     }
   }
 
@@ -188,5 +217,7 @@ struct AuditRecAllocator {
   std::mutex mutex_;
   uint32_t num_ {0};
   uint32_t small_num_ {0};
+  size_t max_reply_bufs_;
+  size_t max_small_bufs_;
 };
 typedef std::shared_ptr<AuditRecAllocator> SPAuditRecAllocator;

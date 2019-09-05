@@ -3,8 +3,17 @@
 
 #define MAX_AUDIT_MESSAGE_LENGTH    8970 // PATH_MAX*2+CONTEXT_SIZE*2+11+256+1
 
+struct nlmsghdr {
+  uint32_t nlmsg_len;
+  uint16_t nlmsg_type;
+  uint16_t nlmsg_flags;
+  uint32_t nlmsg_seq;
+  uint32_t nlmsg_pid;
+};
+
 struct audit_message {
-  char   data[MAX_AUDIT_MESSAGE_LENGTH];
+  nlmsghdr  hdr;
+  char      data[MAX_AUDIT_MESSAGE_LENGTH];
 };
 
 struct audit_reply {
