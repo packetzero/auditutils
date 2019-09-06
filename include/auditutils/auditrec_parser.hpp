@@ -142,16 +142,10 @@ typedef std::shared_ptr<AuditListener> SPAuditListener;
 struct AuditCollector {
 
   /*
-   * Abstraction to get an AuditRecBuf (e.g. audit_reply)
-   * to allow for pooling and other optimizations.
-   */
-  virtual SPAuditRecBuf allocReply() = 0;
-
-  /*
    * Pass on auditd reply to collector for grouping and processing
    * so that listener may receive it.
    */
-  virtual bool onAuditRecord(SPAuditRecBuf spRec) = 0;
+  virtual bool onAuditRecord(struct audit_reply &temp) = 0;
 
   /**
    * Application calls flush() to indicate that all records have arrived, and
@@ -162,7 +156,7 @@ struct AuditCollector {
 
 typedef std::shared_ptr<AuditCollector> SPAuditCollector;
 
-// SPAuditCollector AuditCollectorNew(SPAuditListener listener);
+// SPAuditCollector AuditCollectorNew(SPAuditListener listener, ..);
 
 #include "auditrec_parser_impl.hpp"
 #include "auditrec_buffers_impl.hpp"

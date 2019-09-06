@@ -3,7 +3,7 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.7)
 set (PROJECT_NAME auditutils-tests)
 PROJECT(${PROJECT_NAME})
 
-file(GLOB HDRS "../include/*.h*" "*.h*")
+file(GLOB HDRS "../include/auditutils/*.h*" "*.h*")
 file(GLOB SRCS "*.cpp")
 
 include_directories(../include )

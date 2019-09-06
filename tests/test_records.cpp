@@ -39,10 +39,10 @@ TEST_F(AuditRecParseTests, collect1) {
 
   auto spCollector = AuditCollectorNew(listener_);
 
-  auto spReply = spCollector->allocReply();
-  FILL_REPLY(spReply, rec1);
+  audit_reply reply;
+  FILL_REPLY(reply, rec1);
 
-  spCollector->onAuditRecord(spReply);
+  spCollector->onAuditRecord(reply);
 
   spCollector->flush();
 
@@ -67,10 +67,10 @@ TEST_F(AuditRecParseTests, get_field) {
 
   auto spCollector = AuditCollectorNew(listener_);
 
-  auto spReply = spCollector->allocReply();
-  FILL_REPLY(spReply, rec1);
-
-  spCollector->onAuditRecord(spReply);
+  audit_reply reply;
+  FILL_REPLY(reply, rec1);
+  
+  spCollector->onAuditRecord(reply);
 
   ASSERT_TRUE(listener_->vec.empty());
 
@@ -89,11 +89,12 @@ TEST_F(AuditRecParseTests, multi_groups) {
 
   auto spCollector = AuditCollectorNew(listener_);
 
-  for (int i=0; i < 9; i++) {
-    auto spReply = spCollector->allocReply();
-    FILL_REPLY(spReply, ex1_records[i]);
+  audit_reply reply;
 
-    spCollector->onAuditRecord(spReply);
+  for (int i=0; i < 9; i++) {
+    FILL_REPLY(reply, ex1_records[i]);
+    
+    spCollector->onAuditRecord(reply);
 
     if (i == 4) {
       ASSERT_EQ(1, listener_->vec.size());

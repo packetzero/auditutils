@@ -7,9 +7,8 @@ struct ExampleRec {
 
 #include <auditutils/auditrec_parser.hpp>
 
-static inline void FILL_REPLY(SPAuditRecBuf spRecBuf, const ExampleRec &rec) {
-  auto spReply = std::static_pointer_cast<AuditReplyBuf>(spRecBuf);
-  strcpy(spReply->data(false), rec.msg.data());
-  spReply->len = rec.msg.size();
-  spReply->type = rec.rectype;
+static inline void FILL_REPLY(audit_reply &reply, const ExampleRec &rec) {
+  memcpy(reply.msg.data, rec.msg.data(), rec.msg.size());
+  reply.len = rec.msg.size();
+  reply.type = rec.rectype;
 }
