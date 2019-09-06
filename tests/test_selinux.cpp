@@ -45,12 +45,12 @@ TEST_F(AuditRecSELinuxParseTests, avc_denied1) {
 
   auto spCollector = AuditCollectorNew(listener_);
 
-  auto spReply = spCollector->allocReply();
-  FILL_REPLY(spReply, ex_sel_avc_denied1);
-
   // avc: denied { rename } for pid=2508 comm="canberra-gtk-pl"
 
-  spCollector->onAuditRecord(spReply);
+  audit_reply reply;
+  FILL_REPLY(reply, ex_sel_avc_denied1);
+
+  spCollector->onAuditRecord(reply);
 
   spCollector->flush();
 
@@ -76,10 +76,10 @@ TEST_F(AuditRecSELinuxParseTests, avc_record_granted) {
 
   auto spCollector = AuditCollectorNew(listener_);
 
-  auto spReply = spCollector->allocReply();
-  FILL_REPLY(spReply, ex_sel_avc_granted1);
-
-  spCollector->onAuditRecord(spReply);
+  audit_reply reply;
+  FILL_REPLY(reply, ex_sel_avc_granted1);
+  
+  spCollector->onAuditRecord(reply);
 
   spCollector->flush();
 
@@ -104,10 +104,10 @@ TEST_F(AuditRecSELinuxParseTests, sel_policy1) {
 
   auto spCollector = AuditCollectorNew(listener_);
 
-  auto spReply = spCollector->allocReply();
-  FILL_REPLY(spReply, ex_sel_policy1);
-
-  spCollector->onAuditRecord(spReply);
+  audit_reply reply;
+  FILL_REPLY(reply, ex_sel_policy1);
+  
+  spCollector->onAuditRecord(reply);
 
   spCollector->flush();
 
@@ -131,10 +131,10 @@ TEST_F(AuditRecSELinuxParseTests, sel_user_avc1) {
 
   auto spCollector = AuditCollectorNew(listener_);
 
-  auto spReply = spCollector->allocReply();
-  FILL_REPLY(spReply, ex_sel_user_avc1);
-
-  spCollector->onAuditRecord(spReply);
+  audit_reply reply;
+  FILL_REPLY(reply, ex_sel_user_avc1);
+  
+  spCollector->onAuditRecord(reply);
 
   spCollector->flush();
 
@@ -163,10 +163,10 @@ TEST_F(AuditRecSELinuxParseTests, sel_netlabel1) {
 
   auto spCollector = AuditCollectorNew(listener_);
 
-  auto spReply = spCollector->allocReply();
-  FILL_REPLY(spReply, ex_sel_netlabel1);
-
-  spCollector->onAuditRecord(spReply);
+  audit_reply reply;
+  FILL_REPLY(reply, ex_sel_netlabel1);
+  
+  spCollector->onAuditRecord(reply);
 
   spCollector->flush();
 

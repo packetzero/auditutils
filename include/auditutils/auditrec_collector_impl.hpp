@@ -46,13 +46,6 @@ public:
     return records_[i].spBuf;
   }
 
-  void compact() {
-    // replace with 8 KB buffers with 512 B buffers
-
-    for (int i=0; i < records_.size(); i++) {
-      records_[i].spBuf = allocator_->compact(records_[i].spBuf);
-    }
-  }
 
   /*
    * return type of first record or 0.
@@ -150,16 +143,12 @@ typedef std::shared_ptr<AuditRecGroupImpl> SPAuditGroupImpl;
 
 class AuditCollectorImpl : public AuditCollector {
 public:
-  AuditCollectorImpl(SPAuditListener l, size_t max_pool_size_large, size_t max_pool_size_small) : AuditCollector(), spListener_(l),
+  AuditCollectorImpl(SPAuditListener l, size_t max_pool_size) : AuditCollector(), spListener_(l),
   spCurrent_(),
-  allocator_(std::make_shared<AuditRecAllocator>(max_pool_size_large, max_pool_size_small)) {
+  allocator_(std::make_shared<AuditRecAllocator>(max_pool_size)) {
   }
 
   virtual ~AuditCollectorImpl() {}
-
-  SPAuditRecBuf allocReply() override {
-    return allocator_->allocReply();
-  }
 
   /*
    * Preamble is of format:
@@ -169,25 +158,20 @@ public:
    * serial not always 3 characters
    *
    */
-  bool onAuditRecord(SPAuditRecBuf spRec) override {
+  bool onAuditRecord(struct audit_reply &temp) override {
     std::lock_guard<std::mutex> lock(mutex_);
     // sanity check
 
-    auto msg = spRec->data();
+    char * msg = temp.msg.data  ;//spRec->data();
+    int msglen = temp.len;
+    int msgtype = temp.type;
 
-    if (spRec->size() < 23 || msg[0] != 'a' || msg[5] != '(' || msg[20] != ':') {
-      allocator_->recycle(spRec);
+    if (msglen < 23 || msg[0] != 'a' || msg[5] != '(' || msg[20] != ':') {
       return true;
     }
     // preamble start: "audit(1566400374.798:" + serial + "):"
 
-    if (spRec->getType() == AUDIT_RECORD_TYPE_END_GROUP) {
-      allocator_->recycle(spRec);
-      flush();
-      return false;
-    }
-
-    const char *pend = msg + spRec->size();
+    const char *pend = msg + msglen;
     const char *p = msg + 21;
     const char *start = p;
 
@@ -195,7 +179,6 @@ public:
 
     while (p < pend && *p != ')') p++;
     if (*p != ')') {
-      allocator_->recycle(spRec);
       return true;
     }
 
@@ -225,15 +208,20 @@ public:
 
     // special case when no space after colon
 
-    if (preamble_size > spRec->size()) { preamble_size = spRec->size(); }
+    if (preamble_size > msglen) { preamble_size = msglen; }
 
     // note the length of preamble for when fields get parsed
+    auto spRec = allocator_->alloc(temp.msg, msgtype, msglen, preamble_size);
 
-    spRec->setOffset(preamble_size);
+    //spRec->setOffset(preamble_size);
 
     // add record to current group
 
     spCurrent_->add(spRec);
+
+    if (msgtype == AUDIT_RECORD_TYPE_END_GROUP) {
+      flush();
+    }
 
     return false;
   }
@@ -243,8 +231,6 @@ public:
    */
   virtual void flush() override {
     if (spCurrent_ != nullptr) {
-
-      spCurrent_->compact();
 
       if (spListener_ != nullptr) {
         spListener_->onAuditRecords(spCurrent_);
@@ -263,7 +249,7 @@ protected:
 };
 
 namespace {
-SPAuditCollector AuditCollectorNew(SPAuditListener listener, size_t max_pool_size_large = 50, size_t max_pool_size_small = 500) {
-  return std::make_shared<AuditCollectorImpl>(listener, max_pool_size_large, max_pool_size_small);
+SPAuditCollector AuditCollectorNew(SPAuditListener listener, size_t max_pool_size = 500) {
+  return std::make_shared<AuditCollectorImpl>(listener, max_pool_size);
 }
 }
