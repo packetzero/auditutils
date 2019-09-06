@@ -39,13 +39,6 @@ protected:
   std::shared_ptr<MyAuditListener> listener_;
 };
 
-static inline void FILL_REPLY(SPAuditRecBuf spRecBuf, const ExampleRec &rec) {
-  auto spReply = std::static_pointer_cast<AuditReplyBuf>(spRecBuf);
-  strcpy(spReply->data(false), rec.msg.data());
-  spReply->len = rec.msg.size();
-  spReply->type = rec.rectype;
-}
-
 //static ExampleRec ex_sel_avc_denied1 = {1400, "audit(1242575005.122:101): avc: denied { rename } for pid=2508 comm="canberra-gtk-pl" ...
 
 TEST_F(AuditRecSELinuxParseTests, avc_denied1) {

@@ -35,13 +35,6 @@ protected:
   std::shared_ptr<MyAuditListener> listener_;
 };
 
-static inline void FILL_REPLY(SPAuditRecBuf spRecBuf, const ExampleRec &rec) {
-  auto spReply = std::static_pointer_cast<AuditReplyBuf>(spRecBuf);
-  strcpy(spReply->data(false), rec.msg.data());
-  spReply->len = rec.msg.size();
-  spReply->type = rec.rectype;
-}
-
 TEST_F(AuditRecParseTests, collect1) {
 
   auto spCollector = AuditCollectorNew(listener_);

@@ -47,10 +47,6 @@ public:
   }
 
   void compact() {
-    if (records_.size() <= 1) {
-      return;
-    }
-
     // replace with 8 KB buffers with 512 B buffers
 
     for (int i=0; i < records_.size(); i++) {
@@ -133,7 +129,7 @@ public:
   void release() override {
     header_.serial = "";
     for (auto &rec : records_) {
-      allocator_->free(rec.spBuf);
+      allocator_->recycle(rec.spBuf);
     }
     records_.clear();
   }
@@ -180,13 +176,13 @@ public:
     auto msg = spRec->data();
 
     if (spRec->size() < 23 || msg[0] != 'a' || msg[5] != '(' || msg[20] != ':') {
-      allocator_->free(spRec);
+      allocator_->recycle(spRec);
       return true;
     }
     // preamble start: "audit(1566400374.798:" + serial + "):"
 
     if (spRec->getType() == AUDIT_RECORD_TYPE_END_GROUP) {
-      allocator_->free(spRec);
+      allocator_->recycle(spRec);
       flush();
       return false;
     }
@@ -199,7 +195,7 @@ public:
 
     while (p < pend && *p != ')') p++;
     if (*p != ')') {
-      allocator_->free(spRec);
+      allocator_->recycle(spRec);
       return true;
     }
 

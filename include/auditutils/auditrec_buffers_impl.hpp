@@ -43,14 +43,16 @@ struct AuditReplyBuf : public audit_reply, AuditRecBuf {
   size_t fieldsOffset_ {0};
 };
 
+#define AUDIT_TYPICAL_BUF_MAXLEN 512
 /*
  * A simple 512 byte buffer that should hold most records.
  */
 struct AuditTypicalBuf : public AuditRecBuf {
 
-  static const int MAXLEN = 512;
+  static const int MAXLEN = AUDIT_TYPICAL_BUF_MAXLEN;
 
-  AuditTypicalBuf() : AuditRecBuf(), data_(), len_(0), type_(0) {
+  AuditTypicalBuf(size_t len) : AuditRecBuf(),
+  datavec_( (len <= 512) ? (512 + sizeof(nlmsghdr)) : (len + sizeof(nlmsghdr)) ), len_(0), type_(0) {
   }
 
   virtual ~AuditTypicalBuf() {
@@ -61,7 +63,7 @@ struct AuditTypicalBuf : public AuditRecBuf {
   }
 
   char *data(bool withHeader) override {
-    return (withHeader ? (char *)&hdr_ : data_);
+    return (withHeader ? datavec_.data() : (datavec_.data() + sizeof(nlmsghdr)));
   };
 
   size_t size() override {
@@ -69,14 +71,13 @@ struct AuditTypicalBuf : public AuditRecBuf {
   }
 
   size_t capacity() override {
-    return sizeof(data_);
+    return datavec_.size() - sizeof(nlmsghdr);
   }
 
   void setOffset(int offset) override {
   }
 
-  nlmsghdr  hdr_;
-  char      data_[MAXLEN];
+  std::vector<char> datavec_;
   int       len_;
   int       type_;
 };
@@ -136,17 +137,39 @@ struct AuditRecAllocator {
     return obj;
   }
 
+  /**
+   * Allocates a new buffer, copies message data and headers.
+   * @returns nullptr if reached max_pool_size_small
+   */
+  SPAuditRecBuf duplicate(SPAuditRecBuf orig) {
+    std::lock_guard<std::mutex> lock(mutex_);
+
+    SPAuditTypicalBuf spBuf;
+    if (!small_pool_.empty()) {
+      spBuf = std::static_pointer_cast<AuditTypicalBuf>(small_pool_.front());
+      small_pool_.pop_front();
+    } else {
+      if (max_small_bufs_ > 0) {
+        if (small_num_ >= max_small_bufs_) {
+          return nullptr;
+        }
+        small_num_++;
+      }
+      spBuf = std::make_shared<AuditTypicalBuf>(orig->size());
+    }
+
+    _copyContents(orig, spBuf);
+
+    return spBuf;
+  }
+
   /*
    * Will replace AuditReplyBuf with AuditTypicalBuf
    * if possible, then recycle the AuditReplyBuf.
    */
   SPAuditRecBuf compact(SPAuditRecBuf spReply) {
-    if (spReply->capacity() <= AuditTypicalBuf::MAXLEN) {
-      assert(false); // should not happen
-      return spReply;
-    }
-    if (spReply->size() >= AuditTypicalBuf::MAXLEN) {
-      // TODO: handle this more gracefully.  Ideally use smaller buffer, not audit_reply
+    if (spReply->capacity() < 8000) {
+      assert(false); // should not be calling compact for anything other than SPAuditReplyBuf
       return spReply;
     }
 
@@ -162,38 +185,36 @@ struct AuditRecAllocator {
         }
         small_num_++;
       }
-      spBuf = std::make_shared<AuditTypicalBuf>();
+      spBuf = std::make_shared<AuditTypicalBuf>(spReply->size());
     }
 
-    // copy message data to small buf
-
-    memcpy(spBuf->data(false), spReply->data(), (int)spReply->size());
-
-    // copy over header
-
-    memcpy(spBuf->data(true), spReply->data(true), (int)sizeof(nlmsghdr));
-
-    spBuf->type_ = spReply->getType();
-    spBuf->len_ = spReply->size();
-
-    // make sure it's null-terminated
-
-    spBuf->data_[spBuf->len_] = 0;
+    _copyContents(spReply, spBuf);
 
     // free up 8KB reply buf
 
-    _free(spReply);
+    _recycle(spReply);
 
     return spBuf;
   }
 
-  void free(SPAuditRecBuf obj)  {
-    std::lock_guard<std::mutex> lock(mutex_);
-    _free(obj);
+  size_t smallPoolSize() {
+    return small_pool_.size();
+  }
+  size_t replyPoolSize() {
+    return pool_.size();
   }
 
-  void _free(SPAuditRecBuf obj)  {
-    if (obj->capacity() > AuditTypicalBuf::MAXLEN) {
+  /**
+   * Puts buffer back in pool
+   */
+  void recycle(SPAuditRecBuf obj)  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    _recycle(obj);
+  }
+
+protected:
+  void _recycle(SPAuditRecBuf obj)  {
+    if (obj->capacity() > 8000) {
       auto sp = std::static_pointer_cast<AuditReplyBuf>(obj);
       sp->len = 0;
       sp->type = 0;
@@ -201,8 +222,8 @@ struct AuditRecAllocator {
       memset(&sp->msg.hdr, 0, sizeof(sp->msg.hdr));
       pool_.push_back(obj);
     } else {
-      if (max_small_bufs_ == 0) {
-        // Not pooling small bufs, shared pointer will be freed
+      if (obj->size() > AuditTypicalBuf::MAXLEN) {
+        // don't pool these, just let them get cleaned up
       } else {
         auto sp = std::static_pointer_cast<AuditTypicalBuf>(obj);
         sp->len_ = 0;
@@ -210,6 +231,29 @@ struct AuditRecAllocator {
         small_pool_.push_back(obj);
       }
     }
+  }
+
+  void _copyContents(SPAuditRecBuf orig, SPAuditTypicalBuf dest) {
+
+    if (orig->size() > dest->capacity()) {
+      assert(false);
+      return;
+    }
+
+    // copy message data to small buf
+
+    memcpy(dest->data(false), orig->data(), (int)orig->size());
+
+    // copy over header
+
+    memcpy(dest->data(true), orig->data(true), (int)sizeof(nlmsghdr));
+
+    dest->type_ = orig->getType();
+    dest->len_ = orig->size();
+
+    // make sure it's null-terminated
+
+    dest->data(false)[dest->len_] = 0;
   }
 
   std::list<SPAuditRecBuf> pool_;
