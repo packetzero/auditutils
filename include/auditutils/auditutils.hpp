@@ -90,4 +90,80 @@ struct AuditParseUtils {
     return std::string(tmp);
   }
 
+  /// concatenate the value strings for fields in message of type
+  /// skip can be used to skip over a number of fields at beginning
+  static std::string extractCommandline(const char *body, size_t bodylen) {
+    int nth = 0;
+    int skip = 1;
+
+    auto dst = std::vector<uint8_t>(bodylen);
+    uint8_t *pdest = dst.data();
+
+    const char *start = body;
+    const char *pend = body + bodylen;
+
+    while (start < pend) {
+      const char *p = start ;
+      while (p != pend && *p != '=') {
+        p++;
+      }
+      if (p == pend) {
+        break;
+      }
+      //const char *keyEnd = p;
+      p++;
+      if (p == pend) {
+        break;
+      }
+      const char *valueStart = p;
+      bool isQuoted = false;
+      char endChar = ' ';
+      if (*p == '"' || *p == '\'') {
+        isQuoted = true;
+        endChar = *p;
+        p++;
+        valueStart = p;
+      }
+      if (nth > 1) {
+        *pdest++ = ' ';
+      }
+
+      // find end of value
+      if (nth == 0) {
+        // skip over argc="n"
+        p++;
+      } else {
+        if (!isQuoted) {
+          // this is hex-encoded because it contains a space
+          *pdest++ = '"';
+          // first find end
+          const char *valstart = p;
+          while (p < pend && (*p != endChar)) {
+            p++;
+          }
+          size_t valLen = p-valstart;
+          if (Hexi::hex2ascii((char *)pdest, valLen, valstart, valLen)) {
+            // failed
+          } else {
+            pdest+= valLen / 2; // each 2-char hex is 1 char
+          }
+
+          *pdest++ = '"';
+        } else {
+          // just copy over contents of string value
+          while (p < pend && (*p != endChar)) {
+            *pdest++ = *p++;
+          }
+        }
+      }
+
+      // advance
+      nth++;
+      start = p + (isQuoted ? 2 : 1);
+    }
+    auto dstlen = pdest - dst.data();
+    return std::string((char*)dst.data(), dstlen);
+  }
+
+
 };

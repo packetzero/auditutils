@@ -46,9 +46,14 @@ struct Hexi {
       return true;
     }
     dest.resize(srclen / 2);
-    const char *psrc = src.data();
+    return hex2ascii((char *)dest.data(), dest.size(), src.data(), src.size());
+  }
+
+  static bool hex2ascii(char *pdest, size_t destlen, const char *psrc, size_t srclen) {
+    if (srclen < 2 || srclen % 2 == 1 || destlen < (srclen / 2)) {
+      return true;
+    }
     const char *pend = psrc + srclen;
-    char *pdest = (char*)dest.data();
     int i=0;
     while (psrc < pend) {
       pdest[i++] = parseU8(psrc);
@@ -56,6 +61,7 @@ struct Hexi {
     }
     return false;
   }
+
 
 protected:
   static bool _initLut(uint8_t *lut) {

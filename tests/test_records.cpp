@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <string>
 #include <auditutils/auditrec_parser.hpp>
+#include <auditutils/auditutils.hpp>
 
 #include "example_records.hpp"
 //audit(1105758604.519:420): avc: denied { getattr } for pid=5962 comm="httpd" path="/home/auser/public_html" dev=sdb2 ino=921135
@@ -23,7 +24,7 @@ struct MyAuditListener : public AuditListener {
 extern std::vector<ExampleRec> ex1_records;
 
 const ExampleRec rec1 = {1300, "audit(1566400380.354:266): arch=c000003e syscall=42 success=yes exit=0 a0=4 a1=7fdf339232a0 a2=6e a3=ffffffb4 items=1 ppid=115255 pid=97970 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=(none) ses=4294967295 comm=\"sshd\" exe=\"/usr/sbin/sshd\" key=(null)"};
-const ExampleRec recArgs1 = {1309, "audit(1568215491.636:81166): argc=20 a0=\"/usr/lib/firefox/firefox\" a1=\"-contentproc\" a2=\"-childID\" a3=\"3\" a4=\"-isForBrowser\" a5=\"-prefsLen\" a6=\"7059\" a7=\"-prefMapSize\" a8=\"182813\" a9=\"-parentBuildID\" a10=\"20190718161435\" a11=\"-greomni\" a12=\"/usr/lib/firefox/omni.ja\" a13=\"-appomni\" a14=\"/usr/lib/firefox/brow ser/omni.ja\" a15=\"-appdir\" a16=\"/usr/lib/firefox/browser\" a17=\"69789\" a18=\"true\" a19=\"tab\""};
+const ExampleRec recArgs1 = {1309, "audit(1568215491.636:81166): argc=20 a0=\"/usr/lib/firefox/firefox\" a1=\"-contentproc\" a2=\"-childID\" a3=\"3\" a4=\"-isForBrowser\" a5=\"-prefsLen\" a6=\"7059\" a7=\"-prefMapSize\" a8=\"182813\" a9=\"-parentBuildID\" a10=\"20190718161435\" a11=\"-greomni\" a12=\"/usr/lib/firefox/omni.ja\" a13=\"-appomni\" a14=2F746D702F746865206C73 a15=\"-appdir\" a16=\"/usr/lib/firefox/browser\" a17=\"69789\" a18=\"true\" a19=\"tab\""};
 
 class AuditRecParseTests : public ::testing::Test {
 protected:
@@ -119,7 +120,7 @@ TEST_F(AuditRecParseTests, multi_groups) {
   ASSERT_EQ("/usr/sbin/NetworkManager", value);
 }
 
-TEST_F(AuditRecParseTests, concatSimple) {
+TEST_F(AuditRecParseTests, cmdline) {
   
   auto spCollector = AuditCollectorNew(listener_);
   
@@ -136,23 +137,9 @@ TEST_F(AuditRecParseTests, concatSimple) {
   
   ASSERT_EQ(1,spGroup->getNumMessages());
   EXPECT_EQ(1309, spGroup->getType());
-
-  std::string cmdline = spGroup->concatValues(1309,1);
-  EXPECT_EQ("/usr/lib/firefox/firefox -contentproc -childID 3 -isForBrowser -prefsLen 7059 -prefMapSize 182813 -parentBuildID 20190718161435 -greomni /usr/lib/firefox/omni.ja -appomni \"/usr/lib/firefox/brow ser/omni.ja\" -appdir /usr/lib/firefox/browser 69789 true tab", cmdline);
-
-  cmdline = spGroup->concatValues(222);
-  EXPECT_EQ("",cmdline);
-  
-  cmdline = spGroup->concatValues(1309,-99);
-  EXPECT_EQ("",cmdline);
-
-  cmdline = spGroup->concatValues(1309,20);
-  EXPECT_EQ("tab",cmdline);
-
-  cmdline = spGroup->concatValues(1309,18);
-  EXPECT_EQ("69789 true tab",cmdline);
-
-  cmdline = spGroup->concatValues(1309,18, '_');
-  EXPECT_EQ("69789_true_tab",cmdline);
+  auto spMsgBuf = spGroup->getMessageType(1309);
+  std::string cmdline = AuditParseUtils::extractCommandline(spMsgBuf->data(), spMsgBuf->size());
+  EXPECT_EQ("/usr/lib/firefox/firefox -contentproc -childID 3 -isForBrowser -prefsLen 7059 -prefMapSize 182813 -parentBuildID 20190718161435 -greomni /usr/lib/firefox/omni.ja -appomni \"/tmp/the ls\" -appdir /usr/lib/firefox/browser 69789 true tab", cmdline);
 }
+
 

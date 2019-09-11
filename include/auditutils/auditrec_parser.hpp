@@ -73,10 +73,6 @@ struct AuditRecGroup {
   // get by type. e.g. AUDIT_EXECVE
   virtual SPAuditRecBuf   getMessageType(int type, int n=0) = 0;
 
-  /// concatenate the value strings for fields in message of type
-  /// skip can be used to skip over a number of fields at beginning
-  virtual std::string     concatValues(int type, int skip=0, char delim=' ') = 0;
-
   /*
    * returns record type of first message in group, or 0 if empty.
    */

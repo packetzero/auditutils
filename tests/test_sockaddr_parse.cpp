@@ -162,3 +162,21 @@ TEST_F(AuditParseTests, hex2ascii) {
   Hexi::hex2ascii(dest, s);
   EXPECT_EQ("/tmp/the ls", dest);
 }
+
+static std::string cmdlineEx1 = "argc=20 a0=\"/usr/lib/firefox/firefox\" a1=\"-contentproc\" a2=\"-childID\" a3=\"3\" a4=\"-isForBrowser\" a5=\"-prefsLen\" a6=\"7059\" a7=\"-prefMapSize\" a8=\"182813\" a9=\"-parentBuildID\" a10=\"20190718161435\" a11=\"-greomni\" a12=\"/usr/lib/firefox/omni.ja\" a13=\"-appomni\" a14=2F746D702F746865206C73 a15=\"-appdir\" a16=\"/usr/lib/firefox/browser\" a17=\"69789\" a18=\"true\" a19=\"tab\"";
+
+TEST_F(AuditParseTests, cmdline1) {
+  std::string cmdline = AuditParseUtils::extractCommandline(cmdlineEx1.data(), cmdlineEx1.size());
+  EXPECT_EQ("/usr/lib/firefox/firefox -contentproc -childID 3 -isForBrowser -prefsLen 7059 -prefMapSize 182813 -parentBuildID 20190718161435 -greomni /usr/lib/firefox/omni.ja -appomni \"/tmp/the ls\" -appdir /usr/lib/firefox/browser 69789 true tab", cmdline);
+}
+
+TEST_F(AuditParseTests, cmdline2) {
+  std::string rec = "argc=3 a0=2F746D702F746865206C73 a1=2F746D702F746865206C73 a2=";
+  std::string cmdline = AuditParseUtils::extractCommandline(rec.data(), rec.size());
+  EXPECT_EQ("\"/tmp/the ls\" \"/tmp/the ls\"", cmdline);
+
+  // two hex-encoded args that are invalid (length not multiple of 2)
+  rec = "argc=3 a0=2F7 a1=2";
+  cmdline = AuditParseUtils::extractCommandline(rec.data(), rec.size());
+  EXPECT_EQ("\"\" \"\"", cmdline);
+}
