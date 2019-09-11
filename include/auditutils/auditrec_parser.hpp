@@ -91,6 +91,12 @@ struct AuditRecGroup {
    */
   virtual bool getField(const std::string &name, std::string &dest, std::string defaultValue, int recType=0, int nth=0) = 0;
 
+  /**
+   * similar to above getField(), but will decode hex-encoded field values
+   * which is how auditd handles paths containing spaces.
+   */
+  virtual bool getPathField(const std::string &name, std::string &dest, std::string defaultValue, int recType=0, int nth=0) = 0;
+
  /**
   * First, calls getField(recType,name,..) and then will extracy key=value
   * pairs from from the result (if found).
@@ -161,7 +167,7 @@ struct AuditCollector {
 typedef std::shared_ptr<AuditCollector> SPAuditCollector;
 
 // SPAuditCollector AuditCollectorNew(SPAuditListener listener, ..);
-
+#include "hexi.hpp"
 #include "auditrec_parser_impl.hpp"
 #include "auditrec_buffers_impl.hpp"
 #include "auditrec_collector_impl.hpp"

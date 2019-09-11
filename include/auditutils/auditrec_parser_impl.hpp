@@ -13,6 +13,7 @@
 struct string_offsets_t {
   uint32_t start;
   uint32_t len;
+  bool     isQuoted;
 };
 
 struct AuditRecFieldsParser {
@@ -81,6 +82,7 @@ struct DefaultAuditRecFieldParser  {
       string_offsets_t entry;
       entry.start = (uint32_t)(valueStart - body);
       entry.len = (uint32_t)(p - valueStart );
+      entry.isQuoted = isQuoted;
       dest[key] = entry;
 
       // advance
@@ -170,6 +172,7 @@ struct SELinuxFieldsParser : public AuditRecFieldsParser {
       string_offsets_t entry;
       entry.start = (uint32_t)(valueStart - body);
       entry.len = (uint32_t)(p - valueStart);
+      entry.isQuoted = isQuoted;
 
       if (i++ == 0) {
         // the first key is where the special handling comes into play

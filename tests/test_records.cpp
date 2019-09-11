@@ -71,7 +71,7 @@ TEST_F(AuditRecParseTests, get_field) {
 
   audit_reply reply;
   FILL_REPLY(reply, rec1);
-  
+
   spCollector->onAuditRecord(reply);
 
   ASSERT_TRUE(listener_->vec.empty());
@@ -95,7 +95,7 @@ TEST_F(AuditRecParseTests, multi_groups) {
 
   for (int i=0; i < 9; i++) {
     FILL_REPLY(reply, ex1_records[i]);
-    
+
     spCollector->onAuditRecord(reply);
 
     if (i == 4) {
@@ -121,20 +121,20 @@ TEST_F(AuditRecParseTests, multi_groups) {
 }
 
 TEST_F(AuditRecParseTests, cmdline) {
-  
+
   auto spCollector = AuditCollectorNew(listener_);
-  
+
   audit_reply reply;
   FILL_REPLY(reply, recArgs1);
-  
+
   spCollector->onAuditRecord(reply);
-  
+
   spCollector->flush();
-  
+
   ASSERT_EQ(1, listener_->vec.size());
-  
+
   auto spGroup = listener_->vec[0];
-  
+
   ASSERT_EQ(1,spGroup->getNumMessages());
   EXPECT_EQ(1309, spGroup->getType());
   auto spMsgBuf = spGroup->getMessageType(1309);
@@ -142,4 +142,27 @@ TEST_F(AuditRecParseTests, cmdline) {
   EXPECT_EQ("/usr/lib/firefox/firefox -contentproc -childID 3 -isForBrowser -prefsLen 7059 -prefMapSize 182813 -parentBuildID 20190718161435 -greomni /usr/lib/firefox/omni.ja -appomni \"/tmp/the ls\" -appdir /usr/lib/firefox/browser 69789 true tab", cmdline);
 }
 
+TEST_F(AuditRecParseTests, getPathField) {
 
+  auto spCollector = AuditCollectorNew(listener_);
+
+  audit_reply reply;
+  FILL_REPLY(reply, recArgs1);
+
+  spCollector->onAuditRecord(reply);
+
+  spCollector->flush();
+
+  ASSERT_EQ(1, listener_->vec.size());
+
+  auto spGroup = listener_->vec[0];
+
+  ASSERT_EQ(1,spGroup->getNumMessages());
+
+  std::string tmp;
+  spGroup->getPathField("a14",tmp,"X",1309);
+  EXPECT_EQ("/tmp/the ls",tmp);
+
+  spGroup->getPathField("a0",tmp,"X",1309);
+  EXPECT_EQ("/usr/lib/firefox/firefox",tmp);
+}

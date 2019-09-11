@@ -3,7 +3,6 @@
 #include <mutex>
 #include <vector>
 
-
 class AuditRecGroupImpl : public AuditRecGroup {
 public:
 
@@ -85,6 +84,39 @@ public:
       auto fit = records_[i].fields.find(name);
       if (fit != records_[i].fields.end()) {
         dest = std::string(prec->data() + fit->second.start, fit->second.len);
+        return true;
+      }
+    }
+    dest = defaultValue;
+    return false;
+  }
+
+  /*
+   * return true if found
+   */
+  bool getPathField(const std::string &name, std::string &dest, std::string defaultValue, int recType=0, int nth=0) override {
+
+    // TODO: support nth value
+
+    for (int i=0; i < records_.size(); i++) {
+      auto &prec = records_[i].spBuf;
+      if (recType != 0 && prec->getType() != recType) {
+        continue;
+      }
+      if (!records_[i].isProcessed) {
+        AuditRecParsers::getInstance().parseFields(prec->getType(), prec->data(),
+                                        prec->size(),
+                                        records_[i].fields);
+        records_[i].isProcessed = true;
+      }
+      auto fit = records_[i].fields.find(name);
+      if (fit != records_[i].fields.end()) {
+        if (fit->second.isQuoted) {
+          dest = std::string(prec->data() + fit->second.start, fit->second.len);
+        } else {
+          dest.resize(fit->second.len / 2);
+          Hexi::hex2ascii((char *)dest.data(), dest.size(), prec->data() + fit->second.start, (size_t)fit->second.len);
+        }
         return true;
       }
     }
