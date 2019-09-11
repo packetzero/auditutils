@@ -46,6 +46,87 @@ public:
     return records_[i].spBuf;
   }
 
+  // get by type. e.g. AUDIT_EXECVE
+  SPAuditRecBuf getMessageType(int type, int n=0) override {
+    AuditRecState *p = _getMessageType(type, n);
+    if (nullptr == p) {
+      return nullptr;
+    }
+    return p->spBuf;
+  }
+
+  /// concatenate the value strings for fields in message of type
+  /// skip can be used to skip over a number of fields at beginning
+  std::string concatValues(int type, int skip=0, bool nonQuotedAreHex = true, char delim=' ') override {
+    int nth = 0;
+    AuditRecState *prec = _getMessageType(type);
+    if (nullptr == prec || skip < 0) return "";
+    const char *body = prec->spBuf->data();
+    size_t bodylen = prec->spBuf->size();
+
+    auto dst = std::vector<uint8_t>(bodylen);
+    uint8_t *pdest = dst.data();
+
+    const char *start = body;
+    const char *pend = body + bodylen;
+
+    while (start < pend) {
+      const char *p = start ;
+      while (p != pend && *p != '=') {
+        p++;
+      }
+      if (p == pend) {
+        break;
+      }
+      //const char *keyEnd = p;
+      p++;
+      if (p == pend) {
+        break;
+      }
+      const char *valueStart = p;
+      bool isQuoted = false;
+      char endChar = ' ';
+      if (*p == '"' || *p == '\'') {
+        isQuoted = true;
+        endChar = *p;
+        p++;
+        valueStart = p;
+      }
+      if ((nth - skip) > 0) {
+        *pdest++ = delim;
+      }
+
+      // find end of value
+      bool shouldSkipOver = (nth - skip) < 0;
+      if (shouldSkipOver) {
+        p++;
+      } else {
+        bool hasSpaceChar = false;
+        if (isQuoted) {
+          const char *q = p;
+          while (q < pend && (*q != endChar)) {
+            if (*q++ == ' ') { hasSpaceChar = true; break; }
+          }
+        }
+        if (hasSpaceChar) {
+          *pdest++ = '"';
+        }
+        while (p < pend && (*p != endChar)) {
+          *pdest++ = *p++;
+        }
+        if (hasSpaceChar) {
+          *pdest++ = '"';
+        }
+      }
+
+      // advance
+      nth++;
+      start = p + (isQuoted ? 2 : 1);
+    }
+    auto dstlen = pdest - dst.data();
+    return std::string((char*)dst.data(), dstlen);
+  }
+
 
   /*
    * return type of first record or 0.
@@ -128,6 +209,20 @@ public:
   }
 
 protected:
+
+  AuditRecState* _getMessageType(int type, int n=0) {
+    for (int i=0; i < records_.size(); i++) {
+      if (records_[i].spBuf->getType() == type) {
+        if (n > 0) {
+          n--;
+          continue;
+        }
+        return &records_[i];
+      }
+    }
+    return nullptr;
+  }
+
 
   AuditGroupHdr header_;
 

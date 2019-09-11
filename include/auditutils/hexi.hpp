@@ -36,6 +36,27 @@ struct Hexi {
     return val;
   }
 
+  /**
+   * decodes hex-encoded string
+   * @return true on error, false on success.
+   */
+  static bool hex2ascii(std::string &dest, const std::string &src) {
+    auto srclen = src.size();
+    if (srclen < 2 || srclen % 2 == 1) {
+      return true;
+    }
+    dest.resize(srclen / 2);
+    const char *psrc = src.data();
+    const char *pend = psrc + srclen;
+    char *pdest = (char*)dest.data();
+    int i=0;
+    while (psrc < pend) {
+      pdest[i++] = parseU8(psrc);
+      psrc += 2;
+    }
+    return false;
+  }
+
 protected:
   static bool _initLut(uint8_t *lut) {
     for (int i=0; i < 256; i++) { lut[i] = (uint8_t)0; }

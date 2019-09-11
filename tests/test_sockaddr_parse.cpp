@@ -42,14 +42,14 @@ TEST_F(AuditParseTests, uno) {
 }
 
 TEST_F(AuditParseTests, netlink_ignore) {
-  
+
   SockAddrInfo info;
   bool success = AuditParseUtils::parseSockAddr(saddr_netlink.c_str(), saddr_netlink.size(), info);
   ASSERT_FALSE(success);
 }
 
 TEST_F(AuditParseTests, zero_ignore) {
-  
+
   SockAddrInfo info;
   bool success = AuditParseUtils::parseSockAddr(saddr_zero.c_str(), saddr_zero.size(), info);
   ASSERT_FALSE(success);
@@ -57,7 +57,7 @@ TEST_F(AuditParseTests, zero_ignore) {
 
 
 TEST_F(AuditParseTests, old_uno) {
-  
+
   std::map<std::string,std::string> row;
   row["action"] = "connect";
   bool success = OldAuditParser::parseSockAddr(saddr2, row);
@@ -68,7 +68,7 @@ TEST_F(AuditParseTests, old_uno) {
 }
 
 TEST_F(AuditParseTests, old_v4b) {
-  
+
   std::map<std::string,std::string> row;
   row["action"] = "connect";
   bool success = OldAuditParser::parseSockAddr(saddrv4b, row);
@@ -79,7 +79,7 @@ TEST_F(AuditParseTests, old_v4b) {
 }
 
 TEST_F(AuditParseTests, v4b) {
-  
+
 
   SockAddrInfo info;
   bool success = AuditParseUtils::parseSockAddr(saddrv4b.c_str(), saddrv4b.size(), info);
@@ -92,7 +92,7 @@ TEST_F(AuditParseTests, v4b) {
 }
 
 TEST_F(AuditParseTests, v4b_partial) {
-  
+
   SockAddrInfo info = SockAddrInfo();
   bool success = AuditParseUtils::parseSockAddr(saddrv4b.c_str(), 13 /* too short */, info);
   ASSERT_FALSE(success);
@@ -102,20 +102,20 @@ TEST_F(AuditParseTests, v4b_partial) {
 }
 
 TEST_F(AuditParseTests, v6a) {
-  
-  
+
+
   SockAddrInfo info;
   bool success = AuditParseUtils::parseSockAddr(saddrv6a.c_str(), saddrv6a.size(), info);
   ASSERT_TRUE(success);
   ASSERT_EQ(10, info.family);
   ASSERT_EQ(22, info.port);
   ASSERT_EQ("2406:da00:ff00:0000:0000:0000:34cc:ea4a", info.addr6);
-  
+
 }
 
 TEST_F(AuditParseTests, v6a_partial) {
-  
-  
+
+
   SockAddrInfo info = SockAddrInfo();
   bool success = AuditParseUtils::parseSockAddr(saddrv6a.c_str(), 22 /* too short */, info);
   ASSERT_FALSE(success);
@@ -126,7 +126,7 @@ TEST_F(AuditParseTests, v6a_partial) {
 
 
 TEST_F(AuditParseTests, old_v6a) {
-  
+
   std::map<std::string,std::string> row;
   row["action"] = "connect";
   bool success = OldAuditParser::parseSockAddr(saddrv6a, row);
@@ -137,17 +137,17 @@ TEST_F(AuditParseTests, old_v6a) {
 }
 
 TEST_F(AuditParseTests, socket1) {
-  
-  
+
+
   SockAddrInfo info;
   bool success = AuditParseUtils::parseSockAddr(saddr_socket.c_str(), saddr_socket.size(), info);
   ASSERT_TRUE(success);
   ASSERT_EQ("2F7661722F72756E2F6E7363642F736F636B6574", info.socketid);
-  
+
 }
 
 TEST_F(AuditParseTests, old_socket1) {
-  
+
   std::map<std::string,std::string> row;
   row["action"] = "connect";
   bool success = OldAuditParser::parseSockAddr(saddr_socket, row);
@@ -156,3 +156,9 @@ TEST_F(AuditParseTests, old_socket1) {
   ASSERT_EQ("2F7661722F72756E2F6E7363642F736F636B6574", row["socket"]);
 }
 
+TEST_F(AuditParseTests, hex2ascii) {
+  const std::string s = "2F746D702F746865206C73";
+  std::string dest;
+  Hexi::hex2ascii(dest, s);
+  EXPECT_EQ("/tmp/the ls", dest);
+}
